@@ -1,0 +1,203 @@
+---
+# Trident protect common tasks for both Backup/Restore and Snapshot/Restore scenarios
+
+# Create Kubernetes Secret to store ONTAP S3 credentials
+- name: Create Kubernetes Secret to store ONTAP S3 credentials
+  kubernetes.core.k8s:
+    state: present
+    namespace: trident-protect   # Must be in the Trident protect namespace
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ appvault_secret_name }}"   # Name of your secret
+      type: Opaque
+      stringData:
+        accessKeyID: "{{ s3_access_key }}"
+        secretAccessKey: "{{ s3_secret_key }}"
+  tags:
+    - s3_secret_create
+
+# Create Trident protect AppVault for ONTAP S3
+- name: Create Trident protect AppVault for ONTAP S3
+  kubernetes.core.k8s:
+    state: present
+    namespace: trident-protect   # Must be in the Trident protect namespace
+    definition:
+      apiVersion: protect.trident.netapp.io/v1            #OR trident-protect.netapp.io/v1
+      kind: AppVault
+      metadata:
+        name: "{{ appvault_name }}"   # Name of your AppVault
+      spec:
+        providerType: "OntapS3"
+        providerConfig:
+          s3:
+            bucketName: "{{ ontap_s3_bucket_name }}"
+            endpoint: "{{ ontap_s3_endpoint }}"
+            secure: false
+            skipCertValidation: true
+        providerCredentials:
+          accessKeyID:
+            valueFromSecret:
+              name: "{{ appvault_secret_name }}"   # Name of the S3 secret created earlier
+              key: accessKeyID
+          secretAccessKey:
+            valueFromSecret:
+              name: "{{ appvault_secret_name }}"
+              key: secretAccessKey
+  tags:
+    - tp_create_appvault
+
+# View the newly created AppVault object
+- name: Execute tridentctl-protect get appvault command to verify AppVault creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get appvault -n trident-protect
+  register: appvault_output
+  changed_when: false
+  tags:
+    - tp_verify_appvault
+
+- name: Display AppVault details
+  ansible.builtin.debug:
+    msg: "{{ appvault_output.stdout_lines }}"
+  tags:
+    - tp_verify_appvault
+
+# Label specific VMs and their associated resources in a namespace
+- name: Label specific VMs in {{ vm_namespace }} namespace
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ vm_namespace }}"
+    kind: VirtualMachine
+    name: "{{ item }}"
+    merge_type: strategic-merge
+    definition:
+      metadata:
+        labels:
+          category: "{{ vm_label }}"
+  loop: "{{ vm_list }}"
+  tags:
+    - oc_label_vms
+
+# Label specific VMs and their associated resources in a namespace
+- name: Label specific VMs' PVCs in {{ vm_namespace }} namespace
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ vm_namespace }}"
+    kind: PersistentVolumeClaim
+    name: "{{ item }}"
+    merge_type: strategic-merge
+    definition:
+      metadata:
+        labels:
+          category: "{{ vm_label }}"
+  loop: "{{ pvc_list }}"
+  tags:
+    - oc_label_pvcs
+
+# Verify that the VMs and their corresponding PVCs got the labels
+- name: Verify labels for VMs in {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    kind: VirtualMachine
+    namespace: "{{ vm_namespace }}"
+    name: "{{ item }}"
+  loop: "{{ vm_list }}"
+  register: vm_label_info
+  tags:
+    - oc_verify_vm_labels
+
+- name: Display VM label information
+  ansible.builtin.debug:
+    msg: "{{ item.resources[0].metadata.labels }}"
+  loop: "{{ vm_label_info.results }}"
+  tags:
+    - oc_verify_vm_labels
+
+- name: Verify labels for PVCs in {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    kind: PersistentVolumeClaim
+    namespace: "{{ vm_namespace }}"
+    name: "{{ item }}"
+  loop: "{{ pvc_list }}"
+  register: pvc_label_info
+  tags:
+    - oc_verify_pvc_labels
+
+- name: Display PVC label information
+  ansible.builtin.debug:
+    msg: "{{ item.resources[0].metadata.labels }}"
+  loop: "{{ pvc_label_info.results }}"
+  tags:
+    - oc_verify_pvc_labels
+
+# Optional: Combine the above two tasks into a single task to label both VMs and their PVCs
+# Label specific VMs and their associated resources in a namespace [in single task]
+- name: Label specific VMs and their PVCs in {{ vm_namespace }} namespace using single task
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ vm_namespace }}"
+    kind: "{{ item.kind }}"
+    name: "{{ item.name }}"
+    merge_type: strategic-merge
+    definition:
+      metadata:
+        labels:
+          category: "{{ vm_label }}"
+  loop: "{{ (vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
+  tags:
+    - oc_label_vms_and_pvcs
+
+# Optional: Combine the above two tasks into a single task to verify labels for both VMs and their PVCs
+# Verify that the VMs and their corresponding PVCs got the labels [in single task]
+- name: Verify labels for VMs and their PVCs in {{ vm_namespace }} namespace using single task
+  kubernetes.core.k8s_info:
+    kind: "{{ item.kind }}"
+    namespace: "{{ vm_namespace }}"
+    name: "{{ item.name }}"
+  loop: "{{ (vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
+  register: label_info
+  tags:
+    - oc_verify_vms_and_pvcs_labels
+
+- name: Display label information for VMs and their PVCs
+  ansible.builtin.debug:
+    msg: "{{ item.resources[0].metadata.labels }}"
+  loop: "{{ label_info.results }}"
+  tags:
+    - oc_verify_vms_and_pvcs_labels
+
+# Create an application for specific VMs using the label selector
+- name: Create an application in {{ vm_namespace }} namespace for specific VMs using the label selector
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: Application
+      metadata:
+        name: "{{ application_name }}"   # Application name for the VMs
+      spec:
+        includedNamespaces:
+          - namespace: "{{ vm_namespace }}"
+            labelSelector:
+              matchLabels:
+                category: "{{ vm_label }}"
+  tags:
+    - tp_create_application
+
+# Verify the newly created application in the specified namespace
+- name: Execute tridentctl-protect get application command to verify application creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get application -n "{{ vm_namespace }}"
+  register: application_output
+  changed_when: false
+  tags:
+    - tp_verify_application
+
+- name: Display Application details created in {{ vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ application_output.stdout_lines }}"
+  tags:
+    - tp_verify_application
+
+# End of Trident protect common tasks

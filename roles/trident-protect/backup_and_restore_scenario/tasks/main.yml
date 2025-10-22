@@ -1,0 +1,184 @@
+---
+# Ansible tasks to demonstrate Backup and Restore Scenario for VMs in OpenShift Virtualization using Trident protect
+# Note: This playbook assumes that Trident and Trident protect are already installed and configured in your OpenShift cluster and that the common tasks in roles/trident-protect/trident-protect-common have been executed to configure the prerequisites like AppVault and Application.
+
+# Create on-demand backup of specific VMs in a namespace by using corresponding application
+- name: Create on-demand backup of specific VMs by using corresponding application {{ application_name }} in {{ vm_namespace }} namespace
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: Backup
+      metadata:
+        name: "{{ on_demand_backup_name }}"
+        annotations:
+          protect.trident.netapp.io/full-backup: "true"
+      spec:
+        applicationRef: "{{ application_name }}"
+        appVaultRef: "{{ appvault_name }}"
+  tags:
+    - tp_create_ondemand_backup
+
+# Wait for the backup to complete
+# Note: Adjust retries and delay as needed based on expected backup duration
+- name: Wait for the backup to complete
+  kubernetes.core.k8s_info:
+    namespace: "{{ vm_namespace }}"
+    kind: Backup
+    label_selectors:
+      - "protect.trident.netapp.io/application={{ application_name }}"
+  register: backup_info
+  until: backup_info.resources[0].status.phase == "Completed"
+  retries: 10
+  delay: 30
+  tags:
+    - tp_wait_for_backup_completion
+
+# Verify that the backup was created successfully
+- name: Execute tridentctl-protect get backup command to verify backup creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get backup -n {{ vm_namespace }}
+  register: backup_output
+  changed_when: false
+  tags:
+    - tp_verify_backup
+
+- name: Verify that the backup {{ on_demand_backup_name }} was created successfully
+  ansible.builtin.debug:
+    msg: "{{ backup_output.stdout_lines }}"
+  tags:
+    - tp_verify_backup
+
+# Create a new namespace for restoration
+- name: Create a new {{ restore_namespace }} namespace to which you want to restore the VMs
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ restore_namespace }}"
+  tags:
+    - tp_create_restore_namespace
+
+# Create a BackupRestore object to restore the VMs from the on-demand backup to a different namespace
+- name: Create a BackupRestore object to restore the VMs from the on-demand backup to {{ restore_namespace }} namespace
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ restore_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: BackupRestore
+      metadata:
+        name: "{{ backup_restore_name }}"
+      spec:
+        appVaultRef: "{{ appvault_name }}"
+        backupRef: "{{ on_demand_backup_name }}"
+        namespaceMapping: [{"source": "{{ vm_namespace }}", "destination": "{{ restore_namespace }}"}]
+  tags:
+    - tp_restore_from_ondemand_backup
+
+# Wait for the restore to complete
+- name: Wait for the restore to complete
+  kubernetes.core.k8s_info:
+    namespace: "{{ restore_namespace }}"
+    kind: BackupRestore
+    name: "{{ backup_restore_name }}"
+  register: restore_info
+  until: restore_info.resources[0].status.phase == "Completed"
+  retries: 10
+  delay: 30
+  tags:
+    - tp_wait_for_restore_completion
+
+# Verify that the BackupRestore object was created successfully
+- name: Execute tridentctl-protect get backuprestores command to verify BackupRestore creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get backuprestores -n {{ restore_namespace }}
+  register: backuprestore_output
+  changed_when: false
+  tags:
+    - tp_verify_backuprestore
+
+- name: Verify that the BackupRestore {{ backup_restore_name }} was created successfully
+  ansible.builtin.debug:
+    msg: "{{ backuprestore_output.stdout_lines }}"
+  tags:
+    - tp_verify_backuprestore
+
+# Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace
+- name: Verify that the VMs have been restored successfully to {{ restore_namespace }} namespace
+  kubernetes.core.k8s_info:
+    namespace: "{{ restore_namespace }}"
+    kind: VirtualMachine
+  register: restored_vm_info
+  tags:
+    - tp_verify_restored_vms
+
+- name: Show restored VM details
+  ansible.builtin.debug:
+    msg: "{{ restored_vm_info }}"
+  tags:
+    - tp_verify_restored_vms
+
+- name: Verify that the PVCs have been restored successfully to {{ restore_namespace }} namespace
+  kubernetes.core.k8s_info:
+    namespace: "{{ restore_namespace }}"
+    kind: PersistentVolumeClaim
+  register: restored_pvc_info
+  tags:
+    - tp_verify_restored_pvcs
+
+- name: Show restored PVC details
+  ansible.builtin.debug:
+    msg: "{{ restored_pvc_info }}"
+  tags:
+    - tp_verify_restored_pvcs
+
+# Explicitly check that all VMs and their corresponding PVCs are present in the restore namespace
+- name: Assert all VMs restored in {{ restore_namespace }} namespace
+  ansible.builtin.assert:
+    that:
+      - "vm_list | difference(restored_vm_info.resources | map(attribute='metadata.name') | list) | length == 0"
+    fail_msg: "Some VMs are missing in the restore namespace {{ restore_namespace }}"
+  tags:
+    - tp_verify_restored_vms
+
+- name: Assert all PVCs restored in {{ restore_namespace }} namespace
+  ansible.builtin.assert:
+    that:
+      - "pvc_list | difference(restored_pvc_info.resources | map(attribute='metadata.name') | list) | length == 0"
+    fail_msg: "Some PVCs are missing in the restore namespace {{ restore_namespace }}"
+  tags:
+    - tp_verify_restored_pvcs
+
+# Optional: Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace using a single task
+- name: Verify that the VMs and their corresponding PVCs have been restored successfully to {{ restore_namespace }} namespace using a single task
+  kubernetes.core.k8s_info:
+    namespace: "{{ restore_namespace }}"
+    kind:
+      - VirtualMachine
+      - PersistentVolumeClaim
+  register: restored_resources_info
+  tags:
+    - tp_verify_restored_vms_and_pvcs
+
+- name: Show restored VM and PVC details in {{ restore_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ item.resources[0].metadata.name }}"
+  loop: "{{ restored_resources_info.results }}"
+  tags:
+    - tp_verify_restored_vms_and_pvcs
+
+# Assert all VMs and PVCs restored using single task
+- name: Assert all VMs and PVCs restored in {{ restore_namespace }} namespace using single task
+  ansible.builtin.assert:
+    that:
+      - "vm_list | difference(restored_resources_info.results | selectattr('item.kind', 'equalto', 'VirtualMachine') | map(attribute='resources') | sum(start=[]) | map(attribute='metadata.name') | list) | length == 0"
+      - "pvc_list | difference(restored_resources_info.results | selectattr('item.kind', 'equalto', 'PersistentVolumeClaim') | map(attribute='resources') | sum(start=[]) | map(attribute='metadata.name') | list) | length == 0"
+    fail_msg: "Some VMs or PVCs are missing in the restore namespace {{ restore_namespace }}"
+  tags:
+    - tp_verify_restored_vms_and_pvcs
+
+# End of Backup and Restore Scenario tasks
