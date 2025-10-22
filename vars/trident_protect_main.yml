@@ -1,0 +1,62 @@
+---
+# Variable file for Trident protect related tasks
+# Used in roles/trident-protect/trident-protect-common/tasks/main.yml
+# Used in roles/trident-protect/backup_and_restore_scenario/tasks/main.yml
+# Used in roles/trident-protect/snapshot_and_restore_scenario/tasks/main.yml
+
+# ONTAP S3 credentials and configuration related variables
+s3_access_key: "your_s3_access_key"           # Replace with your ONTAP S3 access key
+s3_secret_key: "your_s3_secret_key"           # Replace with your ONTAP S3 secret key
+ontap_s3_bucket_name: "your_bucket_name"      # Replace with your ONTAP S3 bucket name
+ontap_s3_endpoint: "your_ontap_s3_endpoint"   # LIF for S3 access
+
+# AppVault secret name
+appvault_secret_name: "appvault-secret"       # Name of the Kubernetes Secret for AppVault
+
+# Trident protect AppVault name
+appvault_name: "ontap-s3-appvault"            # Name of the Trident protect AppVault
+
+# Namespace where VMs are deployed in OpenShift Virtualization
+vm_namespace: "demo"                          # Namespace containing the VMs to be backed up or snapshotted
+
+# VMs and associated resources related variables
+# Note: Ensure that the VM names and PVC names match with those in your OpenShift Virtualization environment
+vm_list:
+  - "demo-rhel9"             # List of VMs to be backed up or snapshotted
+  - "demo-windows2k25"
+
+pvc_list:
+  - "demo-rhel9-pvc"         # List of PVCs associated with the VMs
+  - "demo-windows2k25-pvc"
+
+# Label to be applied to VMs and associated resources for selection during backup or snapshot
+vm_label: "protect-rhel-win2k25-vms"          # Label to identify VMs & associated resources for backup/snapshot
+
+# Application for VMs [Managed with Trident protect]
+# Note: Application should be created in the same namespace as the VMs
+application_name: "demo-vms-app"                  # Application name for the VMs
+
+## On-demand Backup and Restore related variables
+on_demand_backup_name: "demo-vms-backup-on-demand"  # Name of the on-demand backup
+
+# Restore namespace
+restore_namespace: "demo2"                          # Namespace to which VMs will be restored
+
+# BackupRestore object name
+backup_restore_name: "demo2-vms-restore-from-backup"            # Name of the BackupRestore object used for restoration
+
+## Scheduled Snapshot and Restore related variables
+# Note: Snapshot schedules will be created in the same namespace as the VMs
+
+# Snapshot schedule specifications
+snapshot_schedule_name: "demo-vms-snapshot-schedule"       # Name of the snapshot schedule
+snapshot_retention_count: 2                                # Number of snapshots to retain
+snapshot_granularity: "Hourly"                             # Granularity of snapshots (e.g., Hourly, Daily, Weekly, Monthly)
+snapshot_hour: ""                                          # Hour of the day for Daily/Weekly/Monthly snapshots (0-23)
+snapshot_minute: "50"                                      # Minute of the hour for snapshots (0-59)
+snapshot_day_of_month: ""                                  # Day of the month for Monthly snapshots (1-28/29/30/31)
+snapshot_day_of_week: ""                                   # Day of the week for Weekly snapshots (0=Sunday to 6=Saturday)
+snapshot_recurrence_rule: ""                               # Custom cron expression for snapshot schedule (if needed)
+
+# SnapshotInplaceRestore object name
+snapshot_inplace_restore_name: "demo-vms-restore-from-snapshot"  # Name of the SnapshotInplaceRestore object used for restoration
