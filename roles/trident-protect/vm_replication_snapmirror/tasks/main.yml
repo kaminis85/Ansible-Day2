@@ -1,3 +1,2 @@
 ---
 # Ansible tasks for VM replication using NetApp SnapMirror and Trident protect
-- name: 
