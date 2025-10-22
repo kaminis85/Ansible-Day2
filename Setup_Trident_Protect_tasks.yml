@@ -1,0 +1,62 @@
+---
+# Execute the below Trident protect role to execute common tasks for both Backup/Restore and Snapshot/Restore scenarios.
+- name: Execute Trident protect common tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/trident-protect-common, tags: [ 'trident-protect-common' ] }
+  tags:
+  - tp_common_tasks
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_common_tasks
+# Ensure that the vars/trident_protect_main.yml file is updated with the desired configuration before executing the playbook.
+
+# For Backup and Restore scenario tasks, execute the below playbook:
+- name: Execute Backup and Restore scenario tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/backup_and_restore_scenario, tags: [ 'backup_and_restore_scenario' ] }
+  tags:
+  - tp_backup_and_restore_tasks
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_backup_and_restore_tasks
+
+# Execute the below role to create Snapshot schedules for VMs in OpenShift Virtualization using Trident protect.
+- name: Execute tasks for Snapshot schedules of VMs
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/create_snapshot_schedule, tags: [ 'create_snapshot_schedule' ] }
+  tags:
+  - tp_snapshot_schedule_tasks
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_snapshot_schedule_tasks
+
+# Make sure the snapshot schedule has created at least one snapshot before proceeding to the Snapshot and Restore scenario tasks.
+# For Snapshot and Restore scenario tasks, execute the below playbook:
+- name: Execute Snapshot and Restore scenario tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/snapshot_restore_scenario, tags: [ 'snapshot_restore_scenario' ] }
+  tags:
+  - tp_snapshot_and_restore_tasks
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_snapshot_and_restore_tasks
