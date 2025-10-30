@@ -56,7 +56,73 @@ snapshot_hour: ""                                          # Hour of the day for
 snapshot_minute: "50"                                      # Minute of the hour for snapshots (0-59)
 snapshot_day_of_month: ""                                  # Day of the month for Monthly snapshots (1-28/29/30/31)
 snapshot_day_of_week: ""                                   # Day of the week for Weekly snapshots (0=Sunday to 6=Saturday)
-snapshot_recurrence_rule: ""                               # Custom cron expression for snapshot schedule (if needed)
 
 # SnapshotInplaceRestore object name
 snapshot_inplace_restore_name: "demo-vms-restore-from-snapshot"  # Name of the SnapshotInplaceRestore object used for restoration
+
+# VM Replication using NetApp SnapMirror and Trident protect related variables
+
+# Source ONTAP S3 credentials and configuration related variables
+source_ontap_s3_specs:
+  secret_name: "source-appvault-secret"        # Kubernetes Secret name for source ONTAP S3 credentials
+  access_key: "source_s3_access_key"           # Source ONTAP S3 access key
+  secret_key: "source_s3_secret_key"           # Source ONTAP S3 secret key
+  s3_bucket_name: "source_bucket_name"         # Source ONTAP S3 bucket name
+  s3_endpoint: "source_ontap_s3_endpoint"      # Source ONTAP S3 endpoint. Provide LIF for S3 access
+
+# AppVault for source VM
+source_appvault_name: "source-ontap-s3-appvault"    # Trident protect AppVault name for source VM
+
+# Source VMs namespace
+source_vm_namespace: "demo-src"            # Namespace where source VMs are deployed
+
+# Source VMs to be replicated
+# Note: Ensure that the source VM names and PVC names match with those in your OpenShift Virtualization environment
+# Make sure to list critical VMs first to ensure proper replication order
+source_vm_list:
+  - "demo-rhel9-src"             # List of source VMs to be replicated
+  - "demo-windows2k25-src"
+  - "demo-ubuntu22-src"
+
+# PVCs associated with source VMs
+source_pvc_list:
+  - "demo-rhel9-src-pvc"         # List of PVCs associated with source VMs
+  - "demo-windows2k25-src-pvc"
+  - "demo-ubuntu22-src-pvc"
+
+# Label to be applied to source VMs and associated resources for selection during replication
+source_vm_label: "replicate-src-vms"    # Label to identify source VMs & associated resources for replication
+
+# Source application name for VMs in source namespace (source OpenShift cluster)
+source_application_name: "demo-src-vms-app"    # Application name for source VMs
+
+# If doing on-demand snapshot, set the below variable to true
+on_demand_src_snapshot: false                 # Set to true to perform on-demand snapshot for source VMs before replication
+
+# On-demand snapshot name for source VMs [Required for replication if on_demand_src_snapshot is true]
+src_on_demand_snapshot_specs:
+  name: "demo-src-vms-on-demand-snapshot"      # Name of the on-demand snapshot for source VMs
+  reclaim_policy: "Retain"                     # Reclaim policy for the on-demand snapshot (e.g., Retain, Delete)
+
+# If doing scheduled snapshot, set the below variable to true
+scheduled_src_snapshot: true                  # Set to true to perform scheduled snapshots for source VMs before replication
+
+# Snapshot schedule specifications for source VMs [Required for replication if scheduled_src_snapshot is true]
+src_snapshot_schedule_specs:
+  name: "demo-src-vms-snapshot-schedule"        # Name of the snapshot schedule for source VMs
+  retention_count: 2                            # Number of snapshots to retain for source VMs
+  recurrence_rule: {dtstart: "20251030T120000Z", rrule: "FREQ=MINUTELY;INTERVAL=5"}  # Recurrence rule for source VM snapshots. Example: Every 5 minutes starting from Oct 17, 2025, 00:02 UTC
+# Note: Adjust dtstart and rrule as per your requirements
+# Example dtstart format:
+# dtstart: "20251024T143000Z"      # UTC time
+# dtstart: "20251024T143000"       # Local time
+# dtstart: "2025-10-24T14:30:00Z"  # UTC time
+# dtstart: "2025-10-24T14:30:00"  # Local time (no timezone)
+# Example rrule formats:
+# rrule: "FREQ=MINUTELY;INTERVAL=10"   # Every 10 minutes
+# rrule: "FREQ=HOURLY;INTERVAL=1"      # Every hour
+# rrule: "FREQ=DAILY;INTERVAL=1"       # Every day
+# rrule: "FREQ=WEEKLY;BYDAY=MO,WE,FR"  # Every Monday, Wednesday, and Friday
+# rrule: "FREQ=MONTHLY;BYMONTHDAY=1"   # First day of every month
+# rrule: "FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1" # Every January 1st
+# Note: Refer to RFC 5545 for more rrule options

@@ -1,2 +1,233 @@
 ---
-# Ansible tasks for VM replication using NetApp SnapMirror and Trident protect
+# Ansible tasks for VM replication using NetApp SnapMirror and Trident protect in OpenShift Virtualization environment
+
+# Create Kubernetes Secret to store source ONTAP S3 credentials
+- name: Create Kubernetes Secret to store source ONTAP S3 credentials
+  kubernetes.core.k8s:
+    state: present
+    namespace: trident-protect
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ source_ontap_s3_specs.secret_name }}"
+      type: Opaque
+      stringData:
+        accessKeyID: "{{ source_ontap_s3_specs.access_key }}"
+        secretAccessKey: "{{ source_ontap_s3_specs.secret_key }}"
+  when: source_ontap_s3_specs is defined
+  tags:
+    - source_ontap_s3_secret_create
+
+# On the source OpenShift cluster, create an AppVault for the source VMs
+- name: Create an AppVault for the source VMs on the source OpenShift cluster
+  kubernetes.core.k8s:
+    state: present
+    namespace: trident-protect
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: AppVault
+      metadata:
+        name: "{{ source_appvault_name }}"
+      spec:
+        providerType: "OntapS3"
+        providerConfig:
+          s3:
+            bucketName: "{{ source_ontap_s3_specs.s3_bucket_name }}"
+            endpoint: "{{ source_ontap_s3_specs.s3_endpoint }}"
+            secure: false
+            skipCertValidation: true
+        providerCredentials:
+          accessKeyID:
+            valueFromSecret:
+              name: "{{ source_ontap_s3_specs.secret_name }}"
+              key: accessKeyID
+          secretAccessKey:
+            valueFromSecret:
+              name: "{{ source_ontap_s3_specs.secret_name }}"
+              key: secretAccessKey
+  when: source_ontap_s3_specs is defined and source_appvault_name is defined
+  tags:
+    - source_appvault_create
+
+# View the AppVault details for the source VMs
+- name: Execute tridentctl-protect get appvault command to verify source AppVault creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get appvault "{{ source_appvault_name }}" -n trident-protect
+  register: source_appvault_info
+  changed_when: false
+  when: source_appvault_name is defined
+  tags:
+    - source_appvault_view
+
+- name: Display source AppVault information
+  ansible.builtin.debug:
+    msg: "{{ source_appvault_info.stdout_lines }}"
+  when: source_appvault_name is defined and source_appvault_info is defined
+  tags:
+    - source_appvault_view
+
+# Label specific VMs and PVCs in source namespace for replication
+- name: Label VMs and PVCs in source namespace {{ source_vm_namespace }} for replication
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ source_vm_namespace }}"
+    kind: "{{ item.kind }}"
+    name: "{{ item.name }}"
+    merge_type: strategic-merge
+    definition:
+      metadata:
+        labels:
+          category: "{{ source_vm_label }}"
+  loop: "{{ (source_vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (source_pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
+  when: (source_vm_list is defined and source_vm_list | length > 0) or (source_pvc_list is defined and source_pvc_list | length > 0)
+  tags:
+    - source_oc_label_vms_and_pvcs
+
+# Verify labels on VMs and PVCs in source namespace
+- name: Verify labels on VMs and PVCs in source namespace {{ source_vm_namespace}}
+  kubernetes.core.k8s_info:
+    namespace: "{{ source_vm_namespace }}"
+    kind: "{{ item.kind }}"
+    name: "{{ item.name }}"
+  loop: "{{ (source_vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (source_pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
+  register: source_label_info
+  when: (source_vm_list is defined and source_vm_list | length > 0) or (source_pvc_list is defined and source_pvc_list | length > 0)
+  tags:
+    - source_oc_verify_vms_and_pvcs_labels
+
+- name: Display labels on VMs and PVCs in source namespace {{ source_vm_namespace}}
+  ansible.builtin.debug:
+    msg: "{{ item.resources[0].metadata.labels }}"
+  loop: "{{ source_label_info.results }}"
+  when: 
+    - (source_vm_list is defined and source_vm_list | length > 0) or (source_pvc_list is defined and source_pvc_list | length > 0)
+    - source_label_info is defined
+  tags:
+    - source_oc_verify_vms_and_pvcs_labels
+
+# On the source OpenShift cluster, create the source application CR for the VMs using label selector
+- name: Create the source application CR for the VMs using label selector on the source OpenShift cluster
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ source_vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: Application
+      metadata:
+        name: "{{ source_application_name }}"
+      spec:
+        includedNamespaces:
+          - namespace: "{{ source_vm_namespace }}"
+            labelSelector:
+              matchLabels:
+                category: "{{ source_vm_label }}"
+  when: source_application_name is defined
+  tags:
+    - source_application_create
+
+# Verify the source application CR creation
+- name: Execute tridentctl-protect get application command to verify source application creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get application "{{ source_application_name }}" -n "{{ source_vm_namespace }}"
+  register: source_application_info
+  changed_when: false
+  when: source_application_name is defined
+  tags:
+    - source_application_view
+
+- name: Display source application details created in {{ source_vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ source_application_info.stdout_lines }}"
+  when: source_application_name is defined and source_application_info is defined
+  tags:
+    - source_application_view
+
+# On the source OpenShift cluster, take a snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
+# Note that here snapshot schedule is created for specific VMs in a namespace by using corresponding application.
+- name: Create a snapshot schedule for the source application {{ source_application_name }} on the source OpenShift cluster
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ source_vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: Schedule
+      metadata:
+        name: "{{ src_snapshot_schedule_specs.name }}"
+      spec:
+        appVaultRef: "{{ source_appvault_name }}"
+        applicationRef: "{{ source_application_name }}"
+        backupRetention: "0"
+        enabled: true
+        granularity: "Custom"
+        snapshotRetention: "{{ src_snapshot_schedule_specs.retention_count }}"
+        recurrenceRule: |-
+          DTSTART:{{ src_snapshot_schedule_specs.recurrence_rule.dtstart }}
+          RRULE:{{ src_snapshot_schedule_specs.recurrence_rule.rrule }}
+  when: 
+    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
+    - source_application_name is defined and source_appvault_name is defined and src_snapshot_schedule_specs is defined
+  tags:
+    - source_snapshot_schedule_create
+
+# Verify the snapshot schedule creation
+- name: Execute tridentctl-protect get schedule command to verify source snapshot schedule creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get schedule "{{ src_snapshot_schedule_specs.name }}" -n "{{ source_vm_namespace }}"
+  register: source_snapshot_schedule_info
+  changed_when: false
+  when:
+    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
+    - src_snapshot_schedule_specs is defined and source_vm_namespace is defined
+  tags:
+    - source_snapshot_schedule_view
+
+- name: Display source snapshot schedule details created in {{ source_vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ source_snapshot_schedule_info.stdout_lines }}"
+  when:
+    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
+    - src_snapshot_schedule_specs is defined and source_snapshot_schedule_info is defined
+  tags:
+    - source_snapshot_schedule_view
+
+# On the source OpenShift cluster, take an on-demand snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
+- name: Create an on-demand snapshot for the source application {{ source_application_name }} on the source OpenShift cluster
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ source_vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: Snapshot
+      metadata:
+        name: "{{ src_on_demand_snapshot_specs.name }}"
+      spec:
+        appVaultRef: "{{ source_appvault_name }}"
+        applicationRef: "{{ source_application_name }}"
+        reclaimPolicy: "{{ src_on_demand_snapshot_specs.reclaim_policy }}"
+  when: 
+    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
+    - source_application_name is defined and source_appvault_name is defined and src_on_demand_snapshot_specs is defined
+  tags:
+    - source_on_demand_snapshot_create
+
+# Verify the on-demand snapshot creation
+- name: Execute tridentctl-protect get snapshot command to verify source on-demand snapshot creation
+  ansible.builtin.command:
+    cmd: tridentctl-protect get snapshot "{{ src_on_demand_snapshot_specs.name }}" -n "{{ source_vm_namespace }}"
+  register: source_on_demand_snapshot_info
+  changed_when: false
+  when:
+    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
+    - src_on_demand_snapshot_specs is defined and source_vm_namespace is defined
+  tags:
+    - source_on_demand_snapshot_view
+
+- name: Display source on-demand snapshot details created in {{ source_vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ source_on_demand_snapshot_info.stdout_lines }}"
+  when:
+    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
+    - src_on_demand_snapshot_specs is defined and source_on_demand_snapshot_info is defined
+  tags:
+    - source_on_demand_snapshot_view
