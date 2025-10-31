@@ -3,6 +3,22 @@
 # The below tasks are executed on the source OpenShift cluster. Ensure that you have access to the source cluster before running these tasks.
 # These tasks create necessary resources such as Kubernetes Secrets, AppVaults, Applications, and Snapshots on the source cluster.
 
+# Preflight validation - Validate source ONTAP S3 credentials configuration
+- name: Validate source ONTAP S3 credentials configuration
+  ansible.builtin.assert:
+    that:
+      - src_ontap_s3_specs is defined
+      - src_ontap_s3_specs.secret_name is defined
+      - src_ontap_s3_specs.access_key is defined and src_ontap_s3_specs.access_key | length > 0
+      - src_ontap_s3_specs.secret_key is defined and src_ontap_s3_specs.secret_key | length > 0
+      - src_ontap_s3_specs.s3_bucket_name is defined
+      - src_ontap_s3_specs.s3_endpoint is defined
+    fail_msg: "S3 credentials configuration is incomplete. Check vars/trident_protect_main.yml"
+    success_msg: "S3 credentials validated successfully"
+  tags:
+    - src_preflight
+    - src_ontap_s3_secret_create
+
 # Create Kubernetes Secret to store source ONTAP S3 credentials
 - name: Create Kubernetes Secret to store source ONTAP S3 credentials
   kubernetes.core.k8s:
@@ -17,9 +33,21 @@
       stringData:
         accessKeyID: "{{ src_ontap_s3_specs.access_key }}"
         secretAccessKey: "{{ src_ontap_s3_specs.secret_key }}"
-  when: src_ontap_s3_specs is defined
   tags:
     - src_ontap_s3_secret_create
+
+# Preflight validation - Validate AppVault and Application configuration
+- name: Validate AppVault and Application configuration
+  ansible.builtin.assert:
+    that:
+      - src_appvault_name is defined
+      - src_application_name is defined
+    fail_msg: "AppVault/Application configuration is incomplete. Check vars/trident_protect_main.yml"
+    success_msg: "AppVault and Application configuration validated successfully"
+  tags:
+    - src_preflight
+    - src_appvault_create
+    - src_application_create
 
 # On the source OpenShift cluster, create an AppVault for the source VMs
 - name: Create an AppVault for the source VMs on the source OpenShift cluster
@@ -48,7 +76,6 @@
             valueFromSecret:
               name: "{{ src_ontap_s3_specs.secret_name }}"
               key: secretAccessKey
-  when: src_ontap_s3_specs is defined and src_appvault_name is defined
   tags:
     - src_appvault_create
 
@@ -58,16 +85,40 @@
     cmd: tridentctl-protect get appvault "{{ src_appvault_name }}" -n trident-protect
   register: src_appvault_info
   changed_when: false
-  when: src_appvault_name is defined
   tags:
     - src_appvault_view
 
 - name: Display source AppVault information
   ansible.builtin.debug:
     msg: "{{ src_appvault_info.stdout_lines }}"
-  when: src_appvault_name is defined and src_appvault_info is defined
+  when: src_appvault_info is defined
   tags:
     - src_appvault_view
+
+# Preflight validation - Validate namespace and VM/PVC configuration
+- name: Validate namespace and VM/PVC configuration
+  ansible.builtin.assert:
+    that:
+      - src_vm_namespace is defined
+      - src_vm_label is defined
+      - (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
+    fail_msg: "Namespace and VM/PVC configuration is incomplete. Check vars/trident_protect_main.yml"
+    success_msg: "Namespace and VM/PVC configuration validated successfully"
+  tags:
+    - src_preflight
+    - src_oc_label_vms_and_pvcs
+
+- name: Verify source VMs namespace {{ src_vm_namespace }} exists
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: "{{ src_vm_namespace }}"
+  register: src_vm_namespace_check
+  failed_when: src_vm_namespace_check.resources | length == 0
+  changed_when: false
+  tags:
+    - src_preflight
+    - src_oc_label_vms_and_pvcs
 
 # Label specific VMs and PVCs in source namespace for replication
 - name: Label VMs and PVCs in source namespace {{ src_vm_namespace }} for replication
@@ -82,7 +133,6 @@
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ (src_vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (src_pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
-  when: (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
   tags:
     - src_oc_label_vms_and_pvcs
 
@@ -94,7 +144,7 @@
     name: "{{ item.name }}"
   loop: "{{ (src_vm_list | map('community.general.dict_kv', 'kind', 'VirtualMachine') | list) + (src_pvc_list | map('community.general.dict_kv', 'kind', 'PersistentVolumeClaim') | list) }}"
   register: src_label_info
-  when: (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
+  changed_when: false
   tags:
     - src_oc_verify_vms_and_pvcs_labels
 
@@ -103,8 +153,7 @@
     msg: "{{ item.resources[0].metadata.labels }}"
   loop: "{{ src_label_info.results }}"
   when: 
-    - (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
-    - src_label_info is defined
+    - item.resources is defined and item.resources | length > 0
   tags:
     - src_oc_verify_vms_and_pvcs_labels
 
@@ -124,7 +173,6 @@
             labelSelector:
               matchLabels:
                 category: "{{ src_vm_label }}"
-  when: src_application_name is defined
   tags:
     - src_application_create
 
@@ -134,16 +182,32 @@
     cmd: tridentctl-protect get application "{{ src_application_name }}" -n "{{ src_vm_namespace }}"
   register: src_application_info
   changed_when: false
-  when: src_application_name is defined
   tags:
     - src_application_view
 
 - name: Display source application details created in {{ src_vm_namespace }} namespace
   ansible.builtin.debug:
     msg: "{{ src_application_info.stdout_lines }}"
-  when: src_application_name is defined and src_application_info is defined
+  when: src_application_info is defined
   tags:
     - src_application_view
+
+# Preflight validation - Validate snapshot schedule configuration
+- name: Validate snapshot schedule configuration
+  ansible.builtin.assert:
+    that:
+      - src_snapshot_schedule_specs is defined
+      - src_snapshot_schedule_specs.name is defined
+      - src_snapshot_schedule_specs.retention_count is defined
+      - src_snapshot_schedule_specs.recurrence_rule is defined
+      - src_snapshot_schedule_specs.recurrence_rule.dtstart is defined
+      - src_snapshot_schedule_specs.recurrence_rule.rrule is defined
+    fail_msg: "Snapshot schedule configuration is incomplete. Check vars/trident_protect_main.yml"
+    success_msg: "Snapshot schedule configuration validated successfully"
+  when: scheduled_src_snapshot | default(false) == true
+  tags:
+    - src_preflight
+    - src_snapshot_schedule_create
 
 # On the source OpenShift cluster, take a snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
 # Note that here snapshot schedule is created for specific VMs in a namespace by using corresponding application.
@@ -166,9 +230,7 @@
         recurrenceRule: |-
           DTSTART:{{ src_snapshot_schedule_specs.recurrence_rule.dtstart }}
           RRULE:{{ src_snapshot_schedule_specs.recurrence_rule.rrule }}
-  when: 
-    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
-    - src_application_name is defined and src_appvault_name is defined and src_snapshot_schedule_specs is defined
+  when: scheduled_src_snapshot | default(false) == true
   tags:
     - src_snapshot_schedule_create
 
@@ -178,9 +240,7 @@
     cmd: tridentctl-protect get schedule "{{ src_snapshot_schedule_specs.name }}" -n "{{ src_vm_namespace }}"
   register: src_snapshot_schedule_info
   changed_when: false
-  when:
-    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
-    - src_snapshot_schedule_specs is defined and src_vm_namespace is defined
+  when: scheduled_src_snapshot | default(false) == true
   tags:
     - src_snapshot_schedule_view
 
@@ -188,10 +248,24 @@
   ansible.builtin.debug:
     msg: "{{ src_snapshot_schedule_info.stdout_lines }}"
   when:
-    - scheduled_src_snapshot is defined and scheduled_src_snapshot == true
-    - src_snapshot_schedule_specs is defined and src_snapshot_schedule_info is defined
+    - scheduled_src_snapshot | default(false) == true
+    - src_snapshot_schedule_info is defined
   tags:
     - src_snapshot_schedule_view
+
+# Preflight validation - Validate on-demand snapshot configuration
+- name: Validate on-demand snapshot configuration
+  ansible.builtin.assert:
+    that:
+      - src_on_demand_snapshot_specs is defined
+      - src_on_demand_snapshot_specs.name is defined
+      - src_on_demand_snapshot_specs.reclaim_policy is defined
+    fail_msg: "On-demand snapshot configuration is incomplete. Check vars/trident_protect_main.yml"
+    success_msg: "On-demand snapshot configuration validated successfully"
+  when: on_demand_src_snapshot | default(false) == true
+  tags:
+    - src_preflight
+    - src_on_demand_snapshot_create
 
 # On the source OpenShift cluster, take an on-demand snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
 - name: Create an on-demand snapshot for the source application {{ src_application_name }} on the source OpenShift cluster
@@ -207,9 +281,7 @@
         appVaultRef: "{{ src_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
         reclaimPolicy: "{{ src_on_demand_snapshot_specs.reclaim_policy }}"
-  when: 
-    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
-    - src_application_name is defined and src_appvault_name is defined and src_on_demand_snapshot_specs is defined
+  when: on_demand_src_snapshot | default(false) == true
   tags:
     - src_on_demand_snapshot_create
 
@@ -219,9 +291,7 @@
     cmd: tridentctl-protect get snapshot "{{ src_on_demand_snapshot_specs.name }}" -n "{{ src_vm_namespace }}"
   register: src_on_demand_snapshot_info
   changed_when: false
-  when:
-    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
-    - src_on_demand_snapshot_specs is defined and src_vm_namespace is defined
+  when: on_demand_src_snapshot | default(false) == true
   tags:
     - src_on_demand_snapshot_view
 
@@ -229,7 +299,7 @@
   ansible.builtin.debug:
     msg: "{{ src_on_demand_snapshot_info.stdout_lines }}"
   when:
-    - on_demand_src_snapshot is defined and on_demand_src_snapshot == true
-    - src_on_demand_snapshot_specs is defined and src_on_demand_snapshot_info is defined
+    - on_demand_src_snapshot | default(false) == true
+    - src_on_demand_snapshot_info is defined
   tags:
     - src_on_demand_snapshot_view
