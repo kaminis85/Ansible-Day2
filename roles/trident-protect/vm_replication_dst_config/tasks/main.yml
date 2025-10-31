@@ -1,1 +1,5 @@
+---
+# Ansible tasks for VM replication using NetApp SnapMirror and Trident protect in OpenShift Virtualization environment.
+# The below tasks are executed on the destination OpenShift cluster. Ensure that you have access to the destination cluster before running these tasks.
 
+# On the destination 
