@@ -130,6 +130,10 @@ src_snapshot_schedule_specs:
 # rrule: "FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1" # Every January 1st
 # Note: Refer to RFC 5545 for more rrule options
 
+# Variables required for setting up replication to destination OpenShift cluster
+
+dst_kubeconfig_path: dst-kubeconfig.txt   # Path to kubeconfig file for destination OpenShift cluster
+
 # Destination ONTAP S3 credentials and configuration related variables
 dst_ontap_s3_specs:
   secret_name: "dst-appvault-secret"          # Kubernetes Secret name for destination ONTAP S3 credentials
@@ -143,3 +147,10 @@ dst_appvault_name: "dst-ontap-s3-appvault"    # Trident protect AppVault name fo
 
 # Destination VMs namespace
 dst_vm_namespace: "demo-dst"            # Namespace where destination VMs will reside
+
+# AppMirrorRelationship specifications
+app_mirror_relationship_specs:
+  name: "demo-amr"                     # Name of the AppMirrorRelationship object for VM replication from source to destination
+  storage_class: "ontap-nfs-sc"        # Storage class to be used for replicated VMs on destination cluster
+  recurrence_rule: {dtstart: "20251030T120000Z", rrule: "FREQ=MINUTELY;INTERVAL=10"}  # Recurrence rule for replication. Example: Every 10 minutes starting from Oct 30, 2025, 12:00 UTC
+# Note: Adjust dtstart and rrule as per your requirements

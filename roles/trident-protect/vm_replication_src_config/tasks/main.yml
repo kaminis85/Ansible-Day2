@@ -3,8 +3,8 @@
 # The below tasks are executed on the source OpenShift cluster. Ensure that you have access to the source cluster before running these tasks.
 # These tasks create necessary resources such as Kubernetes Secrets, AppVaults, Applications, and Snapshots on the source cluster.
 
-# Preflight validation - Validate source ONTAP S3 credentials configuration
-- name: Validate source ONTAP S3 credentials configuration
+# Preflight validation - Validate source ONTAP S3 credentials configuration related variables
+- name: Validate source ONTAP S3 credentials configuration related variables
   ansible.builtin.assert:
     that:
       - src_ontap_s3_specs is defined
@@ -13,8 +13,8 @@
       - src_ontap_s3_specs.secret_key is defined and src_ontap_s3_specs.secret_key | length > 0
       - src_ontap_s3_specs.s3_bucket_name is defined
       - src_ontap_s3_specs.s3_endpoint is defined
-    fail_msg: "S3 credentials configuration is incomplete. Check vars/trident_protect_main.yml"
-    success_msg: "S3 credentials validated successfully"
+    fail_msg: "Source ONTAP S3 credentials configuration related variables are not properly defined. Check vars/trident_protect_main.yml"
+    success_msg: "Source ONTAP S3 credentials related vars validated successfully"
   tags:
     - src_preflight
     - src_ontap_s3_secret_create
@@ -37,13 +37,13 @@
   tags:
     - src_ontap_s3_secret_create
 
-# Preflight validation - Validate AppVault and Application configuration
-- name: Validate AppVault and Application configuration
+# Preflight validation - Validate AppVault and Application configuration related variables
+- name: Validate AppVault and Application configuration related variables
   ansible.builtin.assert:
     that:
       - src_appvault_name is defined
       - src_application_name is defined
-    fail_msg: "AppVault/Application configuration is incomplete. Check vars/trident_protect_main.yml"
+    fail_msg: "AppVault/Application configuration related vars are not properly defined. Check vars/trident_protect_main.yml"
     success_msg: "AppVault and Application configuration related vars validated successfully"
   tags:
     - src_preflight
@@ -97,14 +97,14 @@
   tags:
     - src_appvault_view
 
-# Preflight validation - Validate namespace and VM/PVC configuration
-- name: Validate namespace and VM/PVC configuration
+# Preflight validation - Validate namespace and VM/PVC configuration related variables
+- name: Validate namespace and VM/PVC configuration related variables
   ansible.builtin.assert:
     that:
       - src_vm_namespace is defined
       - src_vm_label is defined
       - (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
-    fail_msg: "Namespace and VM/PVC configuration is incomplete. Check vars/trident_protect_main.yml"
+    fail_msg: "Namespace and VM/PVC configuration related vars are not properly defined. Check vars/trident_protect_main.yml"
     success_msg: "Namespace and VM/PVC configuration related vars validated successfully"
   tags:
     - src_preflight
@@ -198,8 +198,8 @@
   tags:
     - src_application_view
 
-# Preflight validation - Validate snapshot schedule configuration
-- name: Validate snapshot schedule configuration
+# Preflight validation - Validate snapshot schedule configuration related variables
+- name: Validate snapshot schedule configuration related variables
   ansible.builtin.assert:
     that:
       - src_snapshot_schedule_specs is defined
@@ -208,7 +208,7 @@
       - src_snapshot_schedule_specs.recurrence_rule is defined
       - src_snapshot_schedule_specs.recurrence_rule.dtstart is defined
       - src_snapshot_schedule_specs.recurrence_rule.rrule is defined
-    fail_msg: "Snapshot schedule configuration is incomplete. Check vars/trident_protect_main.yml"
+    fail_msg: "Snapshot schedule configuration related vars are not properly defined. Check vars/trident_protect_main.yml"
     success_msg: "Snapshot schedule configuration related vars validated successfully"
   when: scheduled_src_snapshot | default(false) == true
   tags:
@@ -260,14 +260,14 @@
   tags:
     - src_snapshot_schedule_view
 
-# Preflight validation - Validate on-demand snapshot configuration
-- name: Validate on-demand snapshot configuration
+# Preflight validation - Validate on-demand snapshot configuration related variables
+- name: Validate on-demand snapshot configuration related variables
   ansible.builtin.assert:
     that:
       - src_on_demand_snapshot_specs is defined
       - src_on_demand_snapshot_specs.name is defined
       - src_on_demand_snapshot_specs.reclaim_policy is defined
-    fail_msg: "On-demand snapshot configuration is incomplete. Check vars/trident_protect_main.yml"
+    fail_msg: "On-demand snapshot configuration related vars are not properly defined. Check vars/trident_protect_main.yml"
     success_msg: "On-demand snapshot configuration related vars validated successfully"
   when: on_demand_src_snapshot | default(false) == true
   tags:
