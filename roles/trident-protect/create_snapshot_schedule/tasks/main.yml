@@ -5,6 +5,7 @@
 - name: Create snapshot schedule for specific VMs in {{ vm_namespace }} namespace by using corresponding application {{ application_name }}
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1

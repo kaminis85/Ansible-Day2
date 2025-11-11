@@ -5,6 +5,7 @@
 - name: Create Kubernetes Secret to store ONTAP S3 credentials
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: trident-protect   # Must be in the Trident protect namespace
     definition:
       apiVersion: v1
@@ -23,6 +24,7 @@
 - name: Create Trident protect AppVault for ONTAP S3
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: trident-protect   # Must be in the Trident protect namespace
     definition:
       apiVersion: protect.trident.netapp.io/v1            #OR trident-protect.netapp.io/v1
@@ -71,6 +73,7 @@
 - name: Label specific VMs in {{ vm_namespace }} namespace
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     kind: VirtualMachine
     name: "{{ item }}"
@@ -88,6 +91,7 @@
 - name: Label specific VMs' PVCs in {{ vm_namespace }} namespace
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     kind: PersistentVolumeClaim
     name: "{{ item }}"
@@ -104,6 +108,7 @@
 # Verify that the VMs and their corresponding PVCs got the labels
 - name: Verify labels for VMs in {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: VirtualMachine
     namespace: "{{ vm_namespace }}"
     name: "{{ item }}"
@@ -123,6 +128,7 @@
 
 - name: Verify labels for PVCs in {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim
     namespace: "{{ vm_namespace }}"
     name: "{{ item }}"
@@ -145,6 +151,7 @@
 - name: Label specific VMs and their PVCs in {{ vm_namespace }} namespace using single task
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     kind: "{{ item.kind }}"
     name: "{{ item.name }}"
@@ -162,6 +169,7 @@
 # Verify that the VMs and their corresponding PVCs got the labels [in single task]
 - name: Verify labels for VMs and their PVCs in {{ vm_namespace }} namespace using single task
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: "{{ item.kind }}"
     namespace: "{{ vm_namespace }}"
     name: "{{ item.name }}"
@@ -185,6 +193,7 @@
 - name: Create an application in {{ vm_namespace }} namespace for specific VMs using the label selector
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1

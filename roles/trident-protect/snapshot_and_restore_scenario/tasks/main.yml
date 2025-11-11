@@ -30,6 +30,7 @@
 #- name: Delete specific VMs and PVCs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
 #  kubernetes.core.k8s:
 #    state: absent
+#    kubeconfig: "{{ kubeconfig_path }}"
 #    namespace: "{{ vm_namespace }}"
 #    kind: "{{ item.kind }}"
 #    name: "{{ item.name }}"
@@ -40,6 +41,7 @@
 # Verify that the VMs and their associated resources have been deleted from the original namespace
 - name: Verify that the VMs and their associated resources have been deleted from {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: VirtualMachine
     namespace: "{{ vm_namespace }}"
     label_selectors:
@@ -66,6 +68,7 @@
 - name: Create a SnapshotInplaceRestore object to restore VMs to {{ vm_namespace }} namespace using the latest snapshot created by the snapshot schedule
   kubernetes.core.k8s:
     state: present
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
@@ -84,6 +87,7 @@
 # Wait for the restore to complete
 - name: Wait for the restore to complete
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ vm_namespace }}"
     kind: SnapshotInplaceRestore
     name: "{{ snapshot_inplace_restore_name }}"
@@ -117,6 +121,7 @@
 # Verify that the VMs and their associated resources have been restored to the original namespace
 - name: Verify that the VMs and their corresponding PVCs have been restored to {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
     kind:
       - VirtualMachine
       - PersistentVolumeClaim

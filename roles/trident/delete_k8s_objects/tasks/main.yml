@@ -4,6 +4,7 @@
 - name: Delete VolumeSnapshots from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: VolumeSnapshot
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.snapshot_name }}"
@@ -19,6 +20,7 @@
 - name: Delete VolumeSnapshotClass {{ vol_snapshot_class_specs.name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: VolumeSnapshotClass
     name: "{{ vol_snapshot_class_specs.name }}"
   when:
@@ -32,6 +34,7 @@
 - name: Delete NFS PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
@@ -48,6 +51,7 @@
 - name: Delete NFS FlexGroup PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
@@ -63,6 +67,7 @@
 - name: Delete iSCSI PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
@@ -78,6 +83,7 @@
 - name: Delete NVMe/TCP PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
@@ -93,6 +99,7 @@
 - name: Delete FC PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim 
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
@@ -108,6 +115,7 @@
 - name: Delete namespace {{ pvc_namespace }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: Namespace
     name: "{{ pvc_namespace }}"
   when: pvc_namespace is defined and pvc_namespace != ""
@@ -120,6 +128,7 @@
 - name: Delete NFS StorageClass {{ nfs_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
     name: "{{ nfs_specs.sc_name }}"
   when:
@@ -134,6 +143,7 @@
 - name: Delete NFS FlexGroup StorageClass {{ nfs_flexgroup_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
     name: "{{ nfs_flexgroup_specs.sc_name }}"
   when:
@@ -147,6 +157,7 @@
 - name: Delete iSCSI StorageClass {{ iscsi_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
     name: "{{ iscsi_specs.sc_name }}"
   when:
@@ -160,6 +171,7 @@
 - name: Delete NVMe/TCP StorageClass {{ nvme_tcp_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
     name: "{{ nvme_tcp_specs.sc_name }}"
   when:
@@ -173,6 +185,7 @@
 - name: Delete FC StorageClass {{ fc_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
     name: "{{ fc_specs.sc_name }}"
   when:
