@@ -44,7 +44,7 @@
       - src_appvault_name is defined
       - src_application_name is defined
     fail_msg: "AppVault/Application configuration is incomplete. Check vars/trident_protect_main.yml"
-    success_msg: "AppVault and Application configuration validated successfully"
+    success_msg: "AppVault and Application configuration related vars validated successfully"
   tags:
     - src_preflight
     - src_appvault_create
@@ -105,7 +105,7 @@
       - src_vm_label is defined
       - (src_vm_list is defined and src_vm_list | length > 0) or (src_pvc_list is defined and src_pvc_list | length > 0)
     fail_msg: "Namespace and VM/PVC configuration is incomplete. Check vars/trident_protect_main.yml"
-    success_msg: "Namespace and VM/PVC configuration validated successfully"
+    success_msg: "Namespace and VM/PVC configuration related vars validated successfully"
   tags:
     - src_preflight
     - src_oc_label_vms_and_pvcs
@@ -123,8 +123,8 @@
     - src_preflight
     - src_oc_label_vms_and_pvcs
 
-# Label specific VMs and PVCs in source namespace for replication
-- name: Label VMs and PVCs in source namespace {{ src_vm_namespace }} for replication
+# Label specific VMs and PVCs in source namespace for backup/snapshot
+- name: Label VMs and PVCs in source namespace {{ src_vm_namespace }} for backup/snapshot
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
@@ -209,7 +209,7 @@
       - src_snapshot_schedule_specs.recurrence_rule.dtstart is defined
       - src_snapshot_schedule_specs.recurrence_rule.rrule is defined
     fail_msg: "Snapshot schedule configuration is incomplete. Check vars/trident_protect_main.yml"
-    success_msg: "Snapshot schedule configuration validated successfully"
+    success_msg: "Snapshot schedule configuration related vars validated successfully"
   when: scheduled_src_snapshot | default(false) == true
   tags:
     - src_preflight
@@ -268,7 +268,7 @@
       - src_on_demand_snapshot_specs.name is defined
       - src_on_demand_snapshot_specs.reclaim_policy is defined
     fail_msg: "On-demand snapshot configuration is incomplete. Check vars/trident_protect_main.yml"
-    success_msg: "On-demand snapshot configuration validated successfully"
+    success_msg: "On-demand snapshot configuration related vars validated successfully"
   when: on_demand_src_snapshot | default(false) == true
   tags:
     - src_preflight
