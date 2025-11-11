@@ -231,7 +231,7 @@
 # View the AppMirrorRelationship details on the destination OpenShift cluster
 - name: Execute tridentctl-protect get appmirrorrelationship command to verify AppMirrorRelationship creation on the destination OpenShift cluster
   ansible.builtin.command:
-    cmd: tridentctl-protect get appmirrorrelationship {{ app_mirror_relationship_specs.name }} -n "{{ dst_vm_namespace }}"
+    cmd: tridentctl-protect get appmirrorrelationship "{{ app_mirror_relationship_specs.name }}" -n "{{ dst_vm_namespace }}"
   register: dst_app_mirror_relationship_info
   changed_when: false
   tags:
