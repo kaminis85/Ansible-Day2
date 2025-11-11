@@ -126,3 +126,17 @@ src_snapshot_schedule_specs:
 # rrule: "FREQ=MONTHLY;BYMONTHDAY=1"   # First day of every month
 # rrule: "FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1" # Every January 1st
 # Note: Refer to RFC 5545 for more rrule options
+
+# Destination ONTAP S3 credentials and configuration related variables
+dst_ontap_s3_specs:
+  secret_name: "dst-appvault-secret"          # Kubernetes Secret name for destination ONTAP S3 credentials
+  access_key: "dst-s3-access-key"             # Destination ONTAP S3 access key
+  secret_key: "dst-s3-secret-key"             # Destination ONTAP S3 secret key
+  s3_bucket_name: "dst-s3-bucket-name"        # Destination ONTAP S3 bucket name
+  s3_endpoint: "dst-s3-endpoint"              # Destination ONTAP S3 endpoint. Provide LIF for S3 access
+
+# Destination AppVault for the destination application on the destination OpenShift cluster
+dst_appvault_name: "dst-ontap-s3-appvault"    # Trident protect AppVault name for destination application
+
+# Destination VMs namespace
+dst_vm_namespace: "demo-dst"            # Namespace where destination VMs will reside

@@ -2,16 +2,16 @@
 # Ansible tasks for VM replication using NetApp SnapMirror and Trident protect in OpenShift Virtualization environment.
 # The below tasks are executed on the destination OpenShift cluster. Ensure that you have access to the destination cluster before running these tasks.
 
-# On the destination OpenShift cluster, create a new namespace for destination VMs if it does not exist. This should match the same name as source VMs namespace in source cluster.
-- name: Create destination namespace {{ src_vm_namespace }} on the destination OpenShift cluster
+# On the destination OpenShift cluster, create a new namespace for destination VMs if it does not exist
+- name: Create destination namespace {{ dst_vm_namespace }} on the destination OpenShift cluster
   kubernetes.core.k8s:
     state: present
     definition:
       apiVersion: v1
       kind: Namespace
       metadata:
-        name: "{{ src_vm_namespace }}"
-  when: src_vm_namespace is defined
+        name: "{{ dst_vm_namespace }}"
+  when: dst_vm_namespace is defined
   tags:
     - dst_namespace_create
 
@@ -19,7 +19,7 @@
 - name: Create Kubernetes Secret to store source ONTAP S3 credentials on the destination OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    namespace: "{{ src_vm_namespace }}"
+    namespace: trident-protect
     definition:
       apiVersion: v1
       kind: Secret
@@ -29,7 +29,7 @@
       stringData:
         accessKeyID: "{{ src_ontap_s3_specs.access_key }}"
         secretAccessKey: "{{ src_ontap_s3_specs.secret_key }}"
-  when: src_ontap_s3_specs is defined and src_vm_namespace is defined
+  when: src_ontap_s3_specs is defined
   tags:
     - dst_src_ontap_s3_secret_create
 
@@ -37,7 +37,7 @@
 - name: Create source application AppVault for VM replication on the destination OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    namespace: "{{ src_vm_namespace }}"
+    namespace: trident-protect
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppVault
@@ -67,19 +67,19 @@
 # View the source application AppVault details on the destination OpenShift cluster
 - name: Execute tridentctl-protect get appvault command to verify source application AppVault creation on the destination OpenShift cluster
   ansible.builtin.command:
-    cmd: tridentctl-protect get appvault "{{ src_appvault_name }}" -n "{{ src_vm_namespace }}"
+    cmd: tridentctl-protect get appvault "{{ src_appvault_name }}" -n trident-protect"
   register: dst_src_appvault_info
   changed_when: false
-  when: src_appvault_name is defined and src_vm_namespace is defined
+  when: src_appvault_name is defined
   tags:
     - dst_src_appvault_view
 
 # Display the source application AppVault details created on the destination OpenShift cluster
-- name: Display source application AppVault information created in {{ src_vm_namespace }} namespace on the destination OpenShift cluster
+- name: Display source application AppVault information created in trident-protect namespace on the destination OpenShift cluster
   ansible.builtin.debug:
     msg: "{{ dst_src_appvault_info.stdout_lines }}"
   when: 
-    - src_appvault_name is defined and src_vm_namespace is defined
+    - src_appvault_name is defined
     - dst_src_appvault_info is defined
   tags:
     - dst_src_appvault_view
