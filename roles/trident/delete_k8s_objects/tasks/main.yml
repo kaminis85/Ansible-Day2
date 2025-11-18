@@ -1,7 +1,8 @@
+---
 # Delete Kubernetes Objects like VolumeSnapshots, PersistentVolumeClaims, and StorageClasses created by the create_k8s_objects role.
 
-# Delete VolumeSnapshots from the specified namespace
-- name: Delete VolumeSnapshots from {{ pvc_namespace }} namespace
+# Delete VolumeSnapshots of the specified PVCs from the given namespace
+- name: Delete VolumeSnapshots of the specified PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
     kubeconfig: "{{ kubeconfig_path }}"
@@ -95,21 +96,21 @@
   tags:
     - k8s_delete_nvme_tcp_pvcs
 
-# Delete PVCs with FC storage class from the specified namespace
-- name: Delete FC PVCs from {{ pvc_namespace }} namespace
+# Delete PVCs with FCP storage class from the specified namespace
+- name: Delete FCP PVCs from {{ pvc_namespace }} namespace
   kubernetes.core.k8s:
     state: absent
     kubeconfig: "{{ kubeconfig_path }}"
     kind: PersistentVolumeClaim 
     namespace: "{{ pvc_namespace }}"
     name: "{{ item.pvc_name }}"
-  loop: "{{ fc_specs.pvc_info }}"
+  loop: "{{ fcp_specs.pvc_info }}"
   when:
-    - configure_fc == true
+    - configure_fcp == true
     - pvc_namespace is defined and pvc_namespace != ""
     - item is defined and item.pvc_name is defined and item.pvc_name != ""
   tags:
-    - k8s_delete_fc_pvcs
+    - k8s_delete_fcp_pvcs
 
 # Delete namespace that was created for provisioning PVCs
 - name: Delete namespace {{ pvc_namespace }}
@@ -122,7 +123,7 @@
   tags:
     - k8s_delete_namespace
 
-# Delete StorageClasses (cluster-scoped resources) created for each backend (NFS, NFS FlexGroup, iSCSI, NVMe/TCP, FC)
+# Delete StorageClasses (cluster-scoped resources) created for each backend (NFS, NFS FlexGroup, iSCSI, NVMe/TCP, FCP)
 
 # Delete NFS StorageClass
 - name: Delete NFS StorageClass {{ nfs_specs.sc_name }}
@@ -181,16 +182,16 @@
   tags:
     - k8s_delete_nvme_tcp_storage_class
 
-# Delete FC StorageClass
-- name: Delete FC StorageClass {{ fc_specs.sc_name }}
+# Delete FCP StorageClass
+- name: Delete FCP StorageClass {{ fcp_specs.sc_name }}
   kubernetes.core.k8s:
     state: absent
     kubeconfig: "{{ kubeconfig_path }}"
     kind: StorageClass
-    name: "{{ fc_specs.sc_name }}"
+    name: "{{ fcp_specs.sc_name }}"
   when:
-    - configure_fc == true
-    - fc_specs is defined
-    - fc_specs.sc_name is defined and fc_specs.sc_name != ""
+    - configure_fcp == true
+    - fcp_specs is defined
+    - fcp_specs.sc_name is defined and fcp_specs.sc_name != ""
   tags:
-    - k8s_delete_fc_storage_class
+    - k8s_delete_fcp_storage_class
