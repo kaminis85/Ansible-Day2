@@ -1,0 +1,12 @@
+---
+# Execute the below role to refresh OpenShift token and update kubeconfig file
+- name: Refresh OpenShift token and update kubeconfig file
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - group_vars/all/vault.yml
+  connection: local
+  roles:
+  - { role: openshift/refresh_oc_token, tags: [ 'refresh_oc_token' ] }
+  tags:
+  - openshift_auth
