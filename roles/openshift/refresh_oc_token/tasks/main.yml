@@ -3,7 +3,7 @@
 # The oc login command automatically generates/updates the kubeconfig file
 - name: Login to OpenShift cluster and refresh token
   ansible.builtin.command:
-    cmd: oc login --username={{ oc_username }} --password={{ oc_password }} --server={{ oc_api_url }} --insecure-skip-tls-verify=true
+    cmd: oc login --username={{ oc_username }} --password={{ oc_password }} --server={{ oc_api_url }}
   environment:
     KUBECONFIG: "{{ oc_kubeconfig_path }}"
   register: oc_login_result
