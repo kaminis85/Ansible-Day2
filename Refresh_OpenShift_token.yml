@@ -1,5 +1,6 @@
 ---
-# Execute the below role to refresh OpenShift token and update kubeconfig file
+# Execute the below role to refresh OpenShift token and update kubeconfig file.
+# Note that the existing kubeconfig file (kubeconfig.txt) will be updated with the new token.
 - name: Refresh OpenShift token and update kubeconfig file
   hosts: localhost
   gather_facts: false

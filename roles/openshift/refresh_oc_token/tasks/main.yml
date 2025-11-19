@@ -1,6 +1,7 @@
 ---
+# Only execute this role when OpenShift cluster token has expired and needs to be refreshed.
 # Ansible task to refresh OpenShift cluster token by logging in using provided credentials.
-# The oc login command automatically generates/updates the kubeconfig file
+# The oc login command automatically updates the kubeconfig file
 - name: Login to OpenShift cluster and refresh token
   ansible.builtin.command:
     cmd: oc login --username={{ oc_username }} --password={{ oc_password }} --server={{ oc_api_url }}
