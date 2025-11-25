@@ -1,6 +1,28 @@
 ---
 # Trident protect common tasks for both Backup/Restore and Snapshot/Restore scenarios
 
+# Verify Trident Protect installation
+- name: Check if trident-protect namespace exists
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
+    name: trident-protect
+  register: tp_namespace_check
+  failed_when: tp_namespace_check.resources | length == 0
+  tags:
+    - tp_prerequisites
+
+- name: Verify Trident Protect is installed (check controller manager deployment)
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Deployment
+    namespace: trident-protect
+    name: trident-protect-controller-manager
+  register: tp_deployment_check
+  failed_when: tp_deployment_check.resources | length == 0
+  tags:
+    - tp_prerequisites
+
 # Create Kubernetes Secret to store ONTAP S3 credentials
 - name: Create Kubernetes Secret to store ONTAP S3 credentials
   kubernetes.core.k8s:
@@ -27,7 +49,7 @@
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: trident-protect   # Must be in the Trident protect namespace
     definition:
-      apiVersion: protect.trident.netapp.io/v1            #OR trident-protect.netapp.io/v1
+      apiVersion: protect.trident.netapp.io/v1
       kind: AppVault
       metadata:
         name: "{{ appvault_name }}"   # Name of your AppVault
@@ -37,8 +59,8 @@
           s3:
             bucketName: "{{ ontap_s3_bucket_name }}"
             endpoint: "{{ ontap_s3_endpoint }}"
-            secure: false
-            skipCertValidation: true
+            secure: "false"
+            skipCertValidation: "true"
         providerCredentials:
           accessKeyID:
             valueFromSecret:
@@ -53,102 +75,39 @@
     - tp_create_appvault
 
 # View the newly created AppVault object
-- name: Execute tridentctl-protect get appvault command to verify AppVault creation
-  ansible.builtin.command:
-    cmd: tridentctl-protect get appvault "{{ appvault_name }}" -n trident-protect
+- name: Verify AppVault creation
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: AppVault
+    api_version: protect.trident.netapp.io/v1
+    namespace: trident-protect
+    name: "{{ appvault_name }}"
   register: appvault_output
-  changed_when: false
   when: appvault_name is defined
   tags:
     - tp_verify_appvault
 
 - name: Display AppVault details
   ansible.builtin.debug:
-    msg: "{{ appvault_output.stdout_lines }}"
-  when: appvault_name is defined and appvault_output is defined
+    var: appvault_output.resources[0]
+  when: appvault_name is defined and appvault_output.resources | length > 0
   tags:
     - tp_verify_appvault
 
-# Label specific VMs and their associated resources in a namespace
-- name: Label specific VMs in {{ vm_namespace }} namespace
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    namespace: "{{ vm_namespace }}"
-    kind: VirtualMachine
-    name: "{{ item }}"
-    merge_type: strategic-merge
-    definition:
-      metadata:
-        labels:
-          category: "{{ vm_label }}"
-  loop: "{{ vm_list }}"
-  when: vm_list is defined and vm_list | length > 0
-  tags:
-    - oc_label_vms
-
-# Label specific VMs and their associated resources in a namespace
-- name: Label specific VMs' PVCs in {{ vm_namespace }} namespace
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    namespace: "{{ vm_namespace }}"
-    kind: PersistentVolumeClaim
-    name: "{{ item }}"
-    merge_type: strategic-merge
-    definition:
-      metadata:
-        labels:
-          category: "{{ vm_label }}"
-  loop: "{{ pvc_list }}"
-  when: pvc_list is defined and pvc_list | length > 0
-  tags:
-    - oc_label_pvcs
-
-# Verify that the VMs and their corresponding PVCs got the labels
-- name: Verify labels for VMs in {{ vm_namespace }} namespace
+# Check if VM namespace exists before labeling
+- name: Check if {{ vm_namespace }} namespace exists
   kubernetes.core.k8s_info:
     kubeconfig: "{{ kubeconfig_path }}"
-    kind: VirtualMachine
-    namespace: "{{ vm_namespace }}"
-    name: "{{ item }}"
-  loop: "{{ vm_list }}"
-  register: vm_label_info
-  when: vm_list is defined and vm_list | length > 0
+    kind: Namespace
+    name: "{{ vm_namespace }}"
+  register: vm_namespace_check
+  failed_when: vm_namespace_check.resources | length == 0
+  when: vm_namespace is defined
   tags:
-    - oc_verify_vm_labels
+    - oc_label_vms_and_pvcs
 
-- name: Display VM label information
-  ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.labels }}"
-  loop: "{{ vm_label_info.results }}"
-  when: vm_list is defined and vm_list | length > 0 and vm_label_info is defined
-  tags:
-    - oc_verify_vm_labels
-
-- name: Verify labels for PVCs in {{ vm_namespace }} namespace
-  kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
-    kind: PersistentVolumeClaim
-    namespace: "{{ vm_namespace }}"
-    name: "{{ item }}"
-  loop: "{{ pvc_list }}"
-  register: pvc_label_info
-  when: pvc_list is defined and pvc_list | length > 0
-  tags:
-    - oc_verify_pvc_labels
-
-- name: Display PVC label information
-  ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.labels }}"
-  loop: "{{ pvc_label_info.results }}"
-  when: pvc_list is defined and pvc_list | length > 0 and pvc_label_info is defined
-  tags:
-    - oc_verify_pvc_labels
-
-# Optional: Combine the above two tasks into a single task to label both VMs and their PVCs
-# Label specific VMs and their associated resources in a namespace [in single task]
-- name: Label specific VMs and their PVCs in {{ vm_namespace }} namespace using single task
+# Label specific VMs and their associated resources (PVCs) in a namespace 
+- name: Label specific VMs and their PVCs in {{ vm_namespace }} namespace
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
@@ -165,9 +124,8 @@
   tags:
     - oc_label_vms_and_pvcs
 
-# Optional: Combine the above two tasks into a single task to verify labels for both VMs and their PVCs
-# Verify that the VMs and their corresponding PVCs got the labels [in single task]
-- name: Verify labels for VMs and their PVCs in {{ vm_namespace }} namespace using single task
+# Verify that the VMs and their corresponding PVCs got the labels
+- name: Verify labels for VMs and their PVCs in {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
     kubeconfig: "{{ kubeconfig_path }}"
     kind: "{{ item.kind }}"

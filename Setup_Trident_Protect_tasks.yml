@@ -54,7 +54,7 @@
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/snapshot_restore_scenario, tags: [ 'snapshot_restore_scenario' ] }
+  - { role: trident-protect/snapshot_and_restore_scenario, tags: [ 'snapshot_and_restore_scenario' ] }
   tags:
   - tp_snapshot_and_restore_tasks
 

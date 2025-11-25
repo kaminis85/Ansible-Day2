@@ -11,7 +11,8 @@ kubeconfig_path: kubeconfig.txt
 s3_access_key: "your-s3-access-key"           # Replace with your ONTAP S3 access key
 s3_secret_key: "your-s3-secret-key"           # Replace with your ONTAP S3 secret key
 ontap_s3_bucket_name: "your-s3-bucket-name"   # Replace with your ONTAP S3 bucket name
-ontap_s3_endpoint: "your-ontap-s3-endpoint"   # LIF for S3 access
+ontap_s3_endpoint: "your-ontap-s3-endpoint"   # Single S3 LIF IP or FQDN (round robin DNS with multiple S3 LIF entries for load balancing)
+                                              # Examples: "10.102.2.53" or "aa02-ocp-s3-lif.aa02-ocp.flexpodb4.cisco.com"
 
 # AppVault secret name
 appvault_secret_name: "appvault-secret"       # Name of the Kubernetes Secret for AppVault

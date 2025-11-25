@@ -24,8 +24,8 @@ pvc_namespace: test-project
 # NFS Storage class and PVC specifications
 nfs_specs:
   sc_name: ontap-nfs-sc        # Name of the storage class to be created
-  sc_reclaim_policy: Retain    # Reclaim policy for the storage class. Options: Retain and Delete
-  sc_volume_binding_mode: WaitForFirstConsumer     # Volume binding mode. Options: Immediate or WaitForFirstConsumer. Controls when the PV is bound to the PVC. Use WaitForFirstConsumer to delay binding until a Pod is scheduled.
+  sc_reclaim_policy: Delete    # Reclaim policy for the storage class. Options: Retain and Delete
+  sc_volume_binding_mode: Immediate     # Volume binding mode. Options: Immediate or WaitForFirstConsumer. Controls when the PV is bound to the PVC. Use WaitForFirstConsumer to delay binding until a Pod is scheduled.
   nfs_version: "4.1"           # NFS version to be used in mount options. Options: "3", "4.0", "4.1", "4.2"
   pvc_info:                    # PVC size specifications can be in Ki, Mi, Gi, Ti, Pi, Ei
     - { pvc_name: test-nfs-pvc-1, pvc_size: 100Gi, access_modes: [ReadWriteOnce] }   # Access modes for the PVC. Options: ReadWriteOnce (RWO), ReadOnlyMany (ROX), ReadWriteMany (RWX), and ReadWriteOncePod (RWOP).
