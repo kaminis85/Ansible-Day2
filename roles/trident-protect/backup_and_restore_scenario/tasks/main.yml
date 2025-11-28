@@ -6,7 +6,9 @@
 - name: Create on-demand backup of specific VMs by using corresponding application {{ application_name }} in {{ vm_namespace }} namespace
   kubernetes.core.k8s:
     state: present
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
@@ -25,7 +27,9 @@
 # Note: Adjust retries and delay as needed based on expected backup duration
 - name: Wait for the backup to complete
   kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ vm_namespace }}"
     kind: Backup
     label_selectors:
@@ -56,7 +60,9 @@
 - name: Create a new {{ restore_namespace }} namespace to which you want to restore the VMs
   kubernetes.core.k8s:
     state: present
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     definition:
       apiVersion: v1
       kind: Namespace
@@ -69,7 +75,9 @@
 - name: Create a BackupRestore object to restore the VMs from the on-demand backup to {{ restore_namespace }} namespace
   kubernetes.core.k8s:
     state: present
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ restore_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
@@ -86,7 +94,9 @@
 # Wait for the restore to complete
 - name: Wait for the restore to complete
   kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ restore_namespace }}"
     kind: BackupRestore
     name: "{{ backup_restore_name }}"
@@ -115,7 +125,9 @@
 # Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace
 - name: Verify that the VMs have been restored successfully to {{ restore_namespace }} namespace
   kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ restore_namespace }}"
     kind: VirtualMachine
   register: restored_vm_info
@@ -130,7 +142,9 @@
 
 - name: Verify that the PVCs have been restored successfully to {{ restore_namespace }} namespace
   kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ restore_namespace }}"
     kind: PersistentVolumeClaim
   register: restored_pvc_info
@@ -163,7 +177,9 @@
 # Optional: Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace using a single task
 - name: Verify that the VMs and their corresponding PVCs have been restored successfully to {{ restore_namespace }} namespace using a single task
   kubernetes.core.k8s_info:
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ restore_namespace }}"
     kind:
       - VirtualMachine

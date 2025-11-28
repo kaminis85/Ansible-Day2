@@ -4,9 +4,6 @@
 # Used in roles/trident-protect/backup_and_restore_scenario/tasks/main.yml
 # Used in roles/trident-protect/snapshot_and_restore_scenario/tasks/main.yml
 
-# Path to kubeconfig file. This is required to connect to the OpenShift/Kubernetes cluster
-kubeconfig_path: kubeconfig.txt
-
 # ONTAP S3 credentials and configuration related variables
 s3_access_key: "your-s3-access-key"           # Replace with your ONTAP S3 access key
 s3_secret_key: "your-s3-secret-key"           # Replace with your ONTAP S3 secret key

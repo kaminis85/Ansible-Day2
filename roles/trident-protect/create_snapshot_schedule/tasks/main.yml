@@ -5,7 +5,9 @@
 - name: Create snapshot schedule for specific VMs in {{ vm_namespace }} namespace by using corresponding application {{ application_name }}
   kubernetes.core.k8s:
     state: present
-    kubeconfig: "{{ kubeconfig_path }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
     namespace: "{{ vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
