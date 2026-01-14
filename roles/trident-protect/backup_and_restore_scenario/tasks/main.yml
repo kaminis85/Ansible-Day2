@@ -123,59 +123,7 @@
     - tp_verify_backuprestore
 
 # Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace
-- name: Verify that the VMs have been restored successfully to {{ restore_namespace }} namespace
-  kubernetes.core.k8s_info:
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
-    validate_certs: false
-    namespace: "{{ restore_namespace }}"
-    kind: VirtualMachine
-  register: restored_vm_info
-  tags:
-    - tp_verify_restored_vms
-
-- name: Show restored VM details
-  ansible.builtin.debug:
-    msg: "{{ restored_vm_info }}"
-  tags:
-    - tp_verify_restored_vms
-
-- name: Verify that the PVCs have been restored successfully to {{ restore_namespace }} namespace
-  kubernetes.core.k8s_info:
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
-    validate_certs: false
-    namespace: "{{ restore_namespace }}"
-    kind: PersistentVolumeClaim
-  register: restored_pvc_info
-  tags:
-    - tp_verify_restored_pvcs
-
-- name: Show restored PVC details
-  ansible.builtin.debug:
-    msg: "{{ restored_pvc_info }}"
-  tags:
-    - tp_verify_restored_pvcs
-
-# Explicitly check that all VMs and their corresponding PVCs are present in the restore namespace
-- name: Assert all VMs restored in {{ restore_namespace }} namespace
-  ansible.builtin.assert:
-    that:
-      - "vm_list | difference(restored_vm_info.resources | map(attribute='metadata.name') | list) | length == 0"
-    fail_msg: "Some VMs are missing in the restore namespace {{ restore_namespace }}"
-  tags:
-    - tp_verify_restored_vms
-
-- name: Assert all PVCs restored in {{ restore_namespace }} namespace
-  ansible.builtin.assert:
-    that:
-      - "pvc_list | difference(restored_pvc_info.resources | map(attribute='metadata.name') | list) | length == 0"
-    fail_msg: "Some PVCs are missing in the restore namespace {{ restore_namespace }}"
-  tags:
-    - tp_verify_restored_pvcs
-
-# Optional: Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace using a single task
-- name: Verify that the VMs and their corresponding PVCs have been restored successfully to {{ restore_namespace }} namespace using a single task
+- name: Verify that the VMs and their corresponding PVCs have been restored successfully to {{ restore_namespace }} namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
@@ -195,8 +143,8 @@
   tags:
     - tp_verify_restored_vms_and_pvcs
 
-# Assert all VMs and PVCs restored using single task
-- name: Assert all VMs and PVCs restored in {{ restore_namespace }} namespace using single task
+# Assert all VMs and PVCs restored successfully
+- name: Assert all VMs and PVCs restored in {{ restore_namespace }} namespace successfully
   ansible.builtin.assert:
     that:
       - "vm_list | difference(restored_resources_info.results | selectattr('item.kind', 'equalto', 'VirtualMachine') | map(attribute='resources') | sum(start=[]) | map(attribute='metadata.name') | list) | length == 0"
