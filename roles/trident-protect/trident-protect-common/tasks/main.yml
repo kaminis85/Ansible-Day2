@@ -103,8 +103,8 @@
   tags:
     - tp_create_appvault
 
-# View the newly created AppVault object
-- name: Verify AppVault creation
+# Verify the newly created AppVault in Trident protect namespace
+- name: Verify AppVault creation in trident-protect namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
