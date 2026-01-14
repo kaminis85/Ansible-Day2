@@ -48,6 +48,27 @@
   tags:
     - s3_secret_create
 
+# Verify the newly created Secret in Trident protect namespace
+- name: Verify ONTAP S3 Secret creation in trident-protect namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    kind: Secret
+    namespace: trident-protect
+    name: "{{ appvault_secret_name }}"
+  register: s3_secret_output
+  when: appvault_secret_name is defined
+  tags:
+    - s3_secret_verify
+
+- name: Display ONTAP S3 Secret details
+  ansible.builtin.debug:
+    var: s3_secret_output.resources[0]
+  when: appvault_secret_name is defined and s3_secret_output.resources | length > 0
+  tags:
+    - s3_secret_verify
+
 # Create Trident protect AppVault for ONTAP S3
 - name: Create Trident protect AppVault for ONTAP S3
   kubernetes.core.k8s:
