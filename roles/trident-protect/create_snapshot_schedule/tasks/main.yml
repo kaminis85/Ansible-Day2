@@ -19,11 +19,12 @@
         appVaultRef: "{{ appvault_name }}"
         enabled: true
         granularity: "{{ snapshot_granularity }}"
-        hour: "{{ snapshot_hour | default(omit) }}"
-        dayOfMonth: "{{ snapshot_day_of_month | default(omit) }}"
-        dayOfWeek: "{{ snapshot_day_of_week | default(omit) }}"
-        minute: "{{ snapshot_minute }}"
-        snapshotRetention: "{{ snapshot_retention_count }}"
+        hour: "{{ snapshot_hour | string }}"
+        dayOfMonth: "{{ snapshot_day_of_month | string }}"
+        dayOfWeek: "{{ snapshot_day_of_week | string }}"
+        minute: "{{ snapshot_minute | string }}"
+        snapshotRetention: "{{ snapshot_retention_count | string }}"
+        backupRetention: "0"
   when:
     - snapshot_schedule_name is defined
     - application_name is defined and appvault_name is defined and vm_namespace is defined
@@ -31,18 +32,23 @@
     - tp_create_snapshot_schedule
 
 # Verify the newly created snapshot schedule is in place
-- name: Execute tridentctl-protect get schedule command to verify snapshot schedule creation
-  ansible.builtin.command:
-    cmd: tridentctl-protect get schedule {{ snapshot_schedule_name }} -n "{{ vm_namespace }}"
+- name: Get snapshot schedule {{ snapshot_schedule_name }} from {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    api_version: protect.trident.netapp.io/v1
+    kind: Schedule
+    name: "{{ snapshot_schedule_name }}"
+    namespace: "{{ vm_namespace }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
   register: schedule_output
-  changed_when: false
   when: snapshot_schedule_name is defined
   tags:
     - tp_verify_snapshot_schedule
 
 - name: Verify that the snapshot schedule {{ snapshot_schedule_name }} was created successfully in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "{{ schedule_output.stdout_lines }}"
-  when: snapshot_schedule_name is defined and schedule_output is defined
+    msg: "{{ schedule_output.resources[0] }}"
+  when: snapshot_schedule_name is defined and schedule_output is defined and schedule_output.resources | length > 0
   tags:
     - tp_verify_snapshot_schedule

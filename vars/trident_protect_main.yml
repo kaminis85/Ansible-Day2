@@ -51,7 +51,7 @@ backup_restore_name: "demo2-vms-restore-from-backup"            # Name of the Ba
 
 # Snapshot schedule specifications
 snapshot_schedule_name: "demo-vms-snapshot-schedule"       # Name of the snapshot schedule
-snapshot_retention_count: 2                                # Number of snapshots to retain
+snapshot_retention_count: "2"                              # Number of snapshots to retain
 snapshot_granularity: "Hourly"                             # Granularity of snapshots (e.g., Hourly, Daily, Weekly, Monthly)
 snapshot_hour: ""                                          # Hour of the day for Daily/Weekly/Monthly snapshots (0-23)
 snapshot_minute: "50"                                      # Minute of the hour for snapshots (0-59)
