@@ -30,29 +30,39 @@
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
+    api_version: protect.trident.netapp.io/v1
     namespace: "{{ vm_namespace }}"
     kind: Backup
-    label_selectors:
-      - "protect.trident.netapp.io/application={{ application_name }}"
+    name: "{{ on_demand_backup_name }}"
   register: backup_info
-  until: backup_info.resources[0].status.phase == "Completed"
+  until: 
+    - backup_info.resources | length > 0
+    - backup_info.resources[0].status is defined
+    - backup_info.resources[0].status.state is defined
+    - backup_info.resources[0].status.state == "Completed"
   retries: 10
   delay: 30
   tags:
     - tp_wait_for_backup_completion
 
 # Verify that the backup was created successfully
-- name: Execute tridentctl-protect get backup command to verify backup creation
-  ansible.builtin.command:
-    cmd: tridentctl-protect get backup -n {{ vm_namespace }}
+- name: Verify that the backup {{ on_demand_backup_name }} was created successfully
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: protect.trident.netapp.io/v1
+    kind: Backup
+    namespace: "{{ vm_namespace }}"
+    name: "{{ on_demand_backup_name }}"
   register: backup_output
-  changed_when: false
   tags:
     - tp_verify_backup
 
-- name: Verify that the backup {{ on_demand_backup_name }} was created successfully
+- name: Display backup details
   ansible.builtin.debug:
-    msg: "{{ backup_output.stdout_lines }}"
+    var: backup_output.resources[0]
+  when: backup_output.resources | length > 0
   tags:
     - tp_verify_backup
 
@@ -86,10 +96,11 @@
         name: "{{ backup_restore_name }}"
       spec:
         appVaultRef: "{{ appvault_name }}"
+        appArchivePath: "{{ backup_output.resources[0].status.appArchivePath }}"
         backupRef: "{{ on_demand_backup_name }}"
         namespaceMapping: [{"source": "{{ vm_namespace }}", "destination": "{{ restore_namespace }}"}]
   tags:
-    - tp_restore_from_ondemand_backup
+    - tp_create_backuprestore
 
 # Wait for the restore to complete
 - name: Wait for the restore to complete
@@ -97,60 +108,99 @@
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
+    api_version: protect.trident.netapp.io/v1
     namespace: "{{ restore_namespace }}"
     kind: BackupRestore
     name: "{{ backup_restore_name }}"
   register: restore_info
-  until: restore_info.resources[0].status.phase == "Completed"
-  retries: 10
+  until:
+    - restore_info.resources | length > 0
+    - restore_info.resources[0].status is defined
+    - restore_info.resources[0].status.state is defined
+    - restore_info.resources[0].status.state == "Completed"
+  retries: 30
   delay: 30
   tags:
-    - tp_wait_for_restore_completion
+    - tp_wait_for_backuprestore_completion
 
 # Verify that the BackupRestore object was created successfully
-- name: Execute tridentctl-protect get backuprestores command to verify BackupRestore creation
-  ansible.builtin.command:
-    cmd: tridentctl-protect get backuprestores -n {{ restore_namespace }}
-  register: backuprestore_output
-  changed_when: false
-  tags:
-    - tp_verify_backuprestore
-
 - name: Verify that the BackupRestore {{ backup_restore_name }} was created successfully
-  ansible.builtin.debug:
-    msg: "{{ backuprestore_output.stdout_lines }}"
-  tags:
-    - tp_verify_backuprestore
-
-# Verify that the VMs and their corresponding PVCs have been restored successfully to the new namespace
-- name: Verify that the VMs and their corresponding PVCs have been restored successfully to {{ restore_namespace }} namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
+    api_version: protect.trident.netapp.io/v1
+    kind: BackupRestore
     namespace: "{{ restore_namespace }}"
-    kind:
-      - VirtualMachine
-      - PersistentVolumeClaim
-  register: restored_resources_info
+    name: "{{ backup_restore_name }}"
+  register: backuprestore_output
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_backuprestore
 
-- name: Show restored VM and PVC details in {{ restore_namespace }} namespace
+- name: Display BackupRestore details
   ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.name }}"
-  loop: "{{ restored_resources_info.results }}"
+    var: backuprestore_output.resources[0]
+  when: backuprestore_output.resources | length > 0
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_backuprestore
+
+# Verify that the VMs have been restored successfully to the new namespace
+- name: Verify VMs restored to {{ restore_namespace }} namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
+    namespace: "{{ restore_namespace }}"
+  register: restored_vms_info
+  tags:
+    - tp_verify_backuprestore_vms
+    - tp_verify_backuprestore_all
+
+# Verify that the PVCs have been restored successfully to the new namespace
+- name: Verify PVCs restored to {{ restore_namespace }} namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: v1
+    kind: PersistentVolumeClaim
+    namespace: "{{ restore_namespace }}"
+  register: restored_pvcs_info
+  tags:
+    - tp_verify_backuprestore_pvcs
+    - tp_verify_backuprestore_all
+
+- name: Show restored VM details in {{ restore_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ item.metadata.name }}"
+  loop: "{{ restored_vms_info.resources }}"
+  when: restored_vms_info.resources | length > 0
+  tags:
+    - tp_verify_backuprestore_vms
+    - tp_verify_backuprestore_all
+
+- name: Show restored PVC details in {{ restore_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "{{ item.metadata.name }}"
+  loop: "{{ restored_pvcs_info.resources }}"
+  when: restored_pvcs_info.resources | length > 0
+  tags:
+    - tp_verify_backuprestore_pvcs
+    - tp_verify_backuprestore_all
 
 # Assert all VMs and PVCs restored successfully
 - name: Assert all VMs and PVCs restored in {{ restore_namespace }} namespace successfully
   ansible.builtin.assert:
     that:
-      - "vm_list | difference(restored_resources_info.results | selectattr('item.kind', 'equalto', 'VirtualMachine') | map(attribute='resources') | sum(start=[]) | map(attribute='metadata.name') | list) | length == 0"
-      - "pvc_list | difference(restored_resources_info.results | selectattr('item.kind', 'equalto', 'PersistentVolumeClaim') | map(attribute='resources') | sum(start=[]) | map(attribute='metadata.name') | list) | length == 0"
+      - "vm_list | difference(restored_vms_info.resources | map(attribute='metadata.name') | list) | length == 0"
+      - "pvc_list | difference(restored_pvcs_info.resources | map(attribute='metadata.name') | list) | length == 0"
     fail_msg: "Some VMs or PVCs are missing in the restore namespace {{ restore_namespace }}"
+  when:
+    - restored_vms_info.resources is defined
+    - restored_pvcs_info.resources is defined
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_backuprestore_all
 
 # End of Backup and Restore Scenario tasks

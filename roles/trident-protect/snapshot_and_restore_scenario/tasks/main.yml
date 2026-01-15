@@ -140,13 +140,13 @@
       - "category={{ vm_label }}"
   register: restored_vms_and_pvcs
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_restored_vms_and_pvcs_test
 
 - name: Show restored VMs and PVCs details in {{ vm_namespace }} namespace
   ansible.builtin.debug:
     msg: "{{ item.resources[0].metadata.name }}"
   loop: "{{ restored_vms_and_pvcs.results }}"
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_restored_vms_and_pvcs_test
 
 # End of Snapshot and Restore Scenario tasks
