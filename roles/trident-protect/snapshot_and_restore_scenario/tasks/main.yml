@@ -26,19 +26,19 @@
 # oc delete pvc <pvc-name> -n <vm-namespace>
 # Repeat the above commands for all VMs and their associated PVCs listed in the vm_list and pvc_list variables respectively under vars/trident_protect_main.yml
 
-# OR you can uncomment the below task to automate the deletion of VMs and their associated resources using the tasks below.
-#- name: Delete specific VMs and PVCs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
-#  kubernetes.core.k8s:
-#    state: absent
-#    host: "{{ oc_api_url }}"
-#    api_key: "{{ oc_api_token }}"
-#    validate_certs: false
-#    namespace: "{{ vm_namespace }}"
-#    kind: "{{ item.kind }}"
-#    name: "{{ item.name }}"
-#  loop: "{{ query('flattened', [{'kind': 'VirtualMachine', 'name': vm} for vm in vm_list] + [{'kind': 'PersistentVolumeClaim', 'name': pvc} for pvc in pvc_list]) }}"
-#  tags:
-#    - tp_delete_vms_and_pvcs
+# OR you can use the below task to automate the deletion of VMs and their associated resources using the tasks below.
+- name: Delete specific VMs and PVCs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
+  kubernetes.core.k8s:
+    state: absent
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    namespace: "{{ vm_namespace }}"
+    kind: "{{ item.kind }}"
+    name: "{{ item.name }}"
+  loop: "{{ query('flattened', [{'kind': 'VirtualMachine', 'name': vm} for vm in vm_list] + [{'kind': 'PersistentVolumeClaim', 'name': pvc} for pvc in pvc_list]) }}"
+  tags:
+    - tp_delete_vms_and_pvcs
 
 # Verify that the VMs and their associated resources have been deleted from the original namespace
 - name: Verify that the VMs and their associated resources have been deleted from {{ vm_namespace }} namespace
