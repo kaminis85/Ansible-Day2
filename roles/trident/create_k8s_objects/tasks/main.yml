@@ -2,7 +2,7 @@
 # Create Kubernetes Objects like StorageClasses, PersistentVolumeClaims (PVCs), VolumeSnapshots etc.
 
 # Create NFS storage class with specified volume binding mode
-- name: Create NFS storage class with {{ nfs_specs.sc_volume_binding_mode }} volume binding mode
+- name: Create NFS storage class with {{ nfs_specs.sc_volume_binding_mode | default('') }} volume binding mode
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -35,7 +35,7 @@
     - k8s_create_nfs_storage_class
 
 # Create NFS FlexGroup storage class with specified volume binding mode
-- name: Create NFS FlexGroup storage class with {{ nfs_flexgroup_specs.sc_volume_binding_mode }} volume binding mode
+- name: Create NFS FlexGroup storage class with {{ nfs_flexgroup_specs.sc_volume_binding_mode | default('') }} volume binding mode
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -68,7 +68,7 @@
     - k8s_create_nfs_flexgroup_storage_class
 
 # Create iSCSI storage class with specified volume binding mode
-- name: Create iSCSI storage class with {{ iscsi_specs.sc_volume_binding_mode }} volume binding mode
+- name: Create iSCSI storage class with {{ iscsi_specs.sc_volume_binding_mode | default('') }} volume binding mode
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -99,7 +99,7 @@
     - k8s_create_iscsi_storage_class
 
 # Create NVMe/TCP storage class with specified volume binding mode
-- name: Create NVMe/TCP storage class with {{ nvme_tcp_specs.sc_volume_binding_mode }} volume binding mode
+- name: Create NVMe/TCP storage class with {{ nvme_tcp_specs.sc_volume_binding_mode | default('') }} volume binding mode
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -130,7 +130,7 @@
     - k8s_create_nvme_tcp_storage_class
 
 # Create FCP storage class with specified volume binding mode
-- name: Create FCP storage class with {{ fcp_specs.sc_volume_binding_mode }} volume binding mode
+- name: Create FCP storage class with {{ fcp_specs.sc_volume_binding_mode | default('') }} volume binding mode
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -201,7 +201,7 @@
     - k8s_set_default_storage_class
 
 # Set one of the created storage classes as the default storage class
-- name: Set {{ default_sc }} as the default storage class
+- name: Set {{ default_sc | default('') }} as the default storage class
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -240,13 +240,13 @@
     - k8s_create_pvc_namespace
 
 # Create PVCs with NFS storage class in the specified namespace
-- name: Create PVCs with NFS storage class in the {{ pvc_namespace }} namespace
+- name: Create PVCs with NFS storage class in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: v1
       kind: PersistentVolumeClaim
@@ -272,13 +272,13 @@
     - k8s_create_nfs_pvcs
 
 # Create PVCs with NFS FlexGroup storage class in the specified namespace
-- name: Create PVCs with NFS FlexGroup storage class in the {{ pvc_namespace }} namespace
+- name: Create PVCs with NFS FlexGroup storage class in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: v1
       kind: PersistentVolumeClaim
@@ -333,13 +333,13 @@
     - k8s_create_nfs_flexgroup_pvcs
 
 # Create PVCs with iSCSI storage class in the specified namespace
-- name: Create PVCs with iSCSI storage class in the {{ pvc_namespace }} namespace
+- name: Create PVCs with iSCSI storage class in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: v1
       kind: PersistentVolumeClaim
@@ -381,13 +381,13 @@
     - k8s_create_iscsi_pvcs
 
 # Create PVCs with NVMe/TCP storage class in the specified namespace
-- name: Create PVCs with NVMe/TCP storage class in the {{ pvc_namespace }} namespace
+- name: Create PVCs with NVMe/TCP storage class in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: v1
       kind: PersistentVolumeClaim
@@ -429,13 +429,13 @@
     - k8s_create_nvme_tcp_pvcs
 
 # Create PVCs with FCP storage class in the specified namespace
-- name: Create PVCs with FCP storage class in the {{ pvc_namespace }} namespace
+- name: Create PVCs with FCP storage class in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: v1
       kind: PersistentVolumeClaim
@@ -498,13 +498,13 @@
 
 # Below tasks are for creating VolumeSnapshots of the PVCs created above
 # Get all PVCs in the namespace to validate before creating snapshots
-- name: Get all PVCs in the {{ pvc_namespace }} namespace
+- name: Get all PVCs in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
     kind: PersistentVolumeClaim
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     api_version: v1
   register: existing_pvcs
   when:
@@ -514,13 +514,13 @@
     - k8s_create_volume_snapshots
 
 # Create VolumeSnapshots of the specified PVCs in the given namespace
-- name: Create VolumeSnapshots of the specified PVCs in the {{ pvc_namespace }} namespace
+- name: Create VolumeSnapshots of the specified PVCs in the {{ pvc_namespace | default('') }} namespace
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    namespace: "{{ pvc_namespace }}"
+    namespace: "{{ pvc_namespace | default('') }}"
     definition:
       apiVersion: snapshot.storage.k8s.io/v1
       kind: VolumeSnapshot
@@ -546,7 +546,7 @@
 # Display warning for snapshots with non-existent PVCs
 - name: Display warning for VolumeSnapshots with non-existent PVCs
   ansible.builtin.debug:
-    msg: "WARNING: Skipping snapshot '{{ item.snapshot_name }}' - PVC '{{ item.pvc_name }}' does not exist in namespace '{{ pvc_namespace }}'"
+    msg: "WARNING: Skipping snapshot '{{ item.snapshot_name }}' - PVC '{{ item.pvc_name }}' does not exist in namespace '{{ pvc_namespace | default('') }}'"
   loop: "{{ volume_snapshot_specs | default([]) }}"
   when:
     - pvc_namespace is defined and pvc_namespace != ""
