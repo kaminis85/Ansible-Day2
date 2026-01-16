@@ -29,6 +29,8 @@
     - configure_nfs == true
     - nfs_specs is defined
     - nfs_specs.sc_name is defined and nfs_specs.sc_name != ""
+    - nfs_specs.sc_volume_binding_mode is defined and nfs_specs.sc_volume_binding_mode != ""
+    - nfs_specs.nfs_version is defined and nfs_specs.nfs_version != ""
   tags:
     - k8s_create_nfs_storage_class
 
@@ -60,6 +62,8 @@
     - configure_nfs_flexgroup == true
     - nfs_flexgroup_specs is defined
     - nfs_flexgroup_specs.sc_name is defined and nfs_flexgroup_specs.sc_name != ""
+    - nfs_flexgroup_specs.sc_volume_binding_mode is defined and nfs_flexgroup_specs.sc_volume_binding_mode != ""
+    - nfs_flexgroup_specs.nfs_version is defined and nfs_flexgroup_specs.nfs_version != ""
   tags:
     - k8s_create_nfs_flexgroup_storage_class
 
@@ -90,6 +94,7 @@
     - configure_iscsi == true
     - iscsi_specs is defined
     - iscsi_specs.sc_name is defined and iscsi_specs.sc_name != ""
+    - iscsi_specs.sc_volume_binding_mode is defined and iscsi_specs.sc_volume_binding_mode != ""
   tags:
     - k8s_create_iscsi_storage_class
 
@@ -120,6 +125,7 @@
     - configure_nvme_tcp == true
     - nvme_tcp_specs is defined
     - nvme_tcp_specs.sc_name is defined and nvme_tcp_specs.sc_name != ""
+    - nvme_tcp_specs.sc_volume_binding_mode is defined and nvme_tcp_specs.sc_volume_binding_mode != ""
   tags:
     - k8s_create_nvme_tcp_storage_class
 
@@ -150,6 +156,7 @@
     - configure_fcp == true
     - fcp_specs is defined
     - fcp_specs.sc_name is defined and fcp_specs.sc_name != ""
+    - fcp_specs.sc_volume_binding_mode is defined and fcp_specs.sc_volume_binding_mode != ""
   tags:
     - k8s_create_fcp_storage_class
 
@@ -187,10 +194,9 @@
   when:
     - default_sc is defined and default_sc != ""
     - configure_nfs or configure_nfs_flexgroup or configure_iscsi or configure_nvme_tcp or configure_fcp
-    - existing_storage_classes.resources is defined
     - item.metadata.annotations is defined
     - item.metadata.annotations['storageclass.kubernetes.io/is-default-class'] is defined
-    - item.metadata.annotations['storageclass.kubernetes.io/is-default-class'] == "true"
+    - item.metadata.annotations['storageclass.kubernetes.io/is-default-class'] | string == "true"
   tags:
     - k8s_set_default_storage_class
 
@@ -253,11 +259,15 @@
             storage: "{{ item.pvc_size }}"
         storageClassName: "{{ nfs_specs.sc_name }}"
         volumeMode: Filesystem
-  loop: "{{ nfs_specs.pvc_info }}"
+  loop: "{{ nfs_specs.pvc_info | default([]) }}"
   when:
     - configure_nfs == true
+    - nfs_specs is defined
+    - nfs_specs.sc_name is defined and nfs_specs.sc_name != ""
     - pvc_namespace is defined and pvc_namespace != ""
-    - item is defined and item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
+    - item.access_modes is defined and item.access_modes | length > 0
   tags:
     - k8s_create_nfs_pvcs
 
@@ -281,12 +291,15 @@
             storage: "{{ item.pvc_size }}"
         storageClassName: "{{ nfs_flexgroup_specs.sc_name }}"
         volumeMode: Filesystem
-  loop: "{{ nfs_flexgroup_specs.pvc_info }}"
+  loop: "{{ nfs_flexgroup_specs.pvc_info | default([]) }}"
   when:
     - configure_nfs_flexgroup == true
+    - nfs_flexgroup_specs is defined
+    - nfs_flexgroup_specs.sc_name is defined and nfs_flexgroup_specs.sc_name != ""
     - pvc_namespace is defined and pvc_namespace != ""
-    - item is defined and item.pvc_name is defined and item.pvc_name != ""
-    - item.pvc_size is defined
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
+    - item.access_modes is defined and item.access_modes | length > 0
     - >
       (item.pvc_size is match('^[0-9]+Ki$') and (item.pvc_size | regex_replace('Ki$', '') | int) >= 838860800) or
       (item.pvc_size is match('^[0-9]+Mi$') and (item.pvc_size | regex_replace('Mi$', '') | int) >= 819200) or
@@ -301,11 +314,12 @@
 - name: Display warning for NFS FlexGroup PVCs with size less than 800Gi
   ansible.builtin.debug:
     msg: "WARNING: Skipping PVC '{{ item.pvc_name }}' - NFS FlexGroup requires minimum size of 800Gi. Requested size: {{ item.pvc_size }}"
-  loop: "{{ nfs_flexgroup_specs.pvc_info }}"
+  loop: "{{ nfs_flexgroup_specs.pvc_info | default([]) }}"
   when:
     - configure_nfs_flexgroup == true
-    - item is defined and item.pvc_name is defined
-    - item.pvc_size is defined
+    - nfs_flexgroup_specs is defined
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
     - >
       not (
         (item.pvc_size is match('^[0-9]+Ki$') and (item.pvc_size | regex_replace('Ki$', '') | int) >= 838860800) or
@@ -338,12 +352,16 @@
             storage: "{{ item.pvc_size }}"
         storageClassName: "{{ iscsi_specs.sc_name }}"
         volumeMode: "{{ item.volume_mode | default('Filesystem') }}"
-  loop: "{{ iscsi_specs.pvc_info }}"
+  loop: "{{ iscsi_specs.pvc_info | default([]) }}"
   when:
     - configure_iscsi == true
+    - iscsi_specs is defined
+    - iscsi_specs.sc_name is defined and iscsi_specs.sc_name != ""
     - pvc_namespace is defined and pvc_namespace != ""
-    - item is defined and item.pvc_name is defined and item.pvc_name != ""
-    - not (item.access_modes is defined and 'ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - not ('ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
   tags:
     - k8s_create_iscsi_pvcs
 
@@ -351,11 +369,13 @@
 - name: Display warning for iSCSI PVCs with unsupported RWX + Filesystem configuration
   ansible.builtin.debug:
     msg: "WARNING: Skipping PVC '{{ item.pvc_name }}' - iSCSI does not support ReadWriteMany (RWX) access mode with Filesystem volume mode. Use ReadWriteMany (RWX) with Block volume mode."
-  loop: "{{ iscsi_specs.pvc_info }}"
+  loop: "{{ iscsi_specs.pvc_info | default([]) }}"
   when:
     - configure_iscsi == true
-    - item is defined and item.pvc_name is defined
-    - item.access_modes is defined and 'ReadWriteMany' in item.access_modes
+    - iscsi_specs is defined
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - 'ReadWriteMany' in item.access_modes
     - (item.volume_mode | default('Filesystem')) == 'Filesystem'
   tags:
     - k8s_create_iscsi_pvcs
@@ -380,12 +400,16 @@
             storage: "{{ item.pvc_size }}"
         storageClassName: "{{ nvme_tcp_specs.sc_name }}"
         volumeMode: "{{ item.volume_mode | default('Filesystem') }}"
-  loop: "{{ nvme_tcp_specs.pvc_info }}"
+  loop: "{{ nvme_tcp_specs.pvc_info | default([]) }}"
   when:
     - configure_nvme_tcp == true
+    - nvme_tcp_specs is defined
+    - nvme_tcp_specs.sc_name is defined and nvme_tcp_specs.sc_name != ""
     - pvc_namespace is defined and pvc_namespace != ""
-    - item is defined and item.pvc_name is defined and item.pvc_name != ""
-    - not (item.access_modes is defined and 'ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - not ('ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
   tags:
     - k8s_create_nvme_tcp_pvcs
 
@@ -393,11 +417,13 @@
 - name: Display warning for NVMe/TCP PVCs with unsupported RWX + Filesystem configuration
   ansible.builtin.debug:
     msg: "WARNING: Skipping PVC '{{ item.pvc_name }}' - NVMe/TCP does not support ReadWriteMany (RWX) access mode with Filesystem volume mode. Use ReadWriteMany (RWX) with Block volume mode."
-  loop: "{{ nvme_tcp_specs.pvc_info }}"
+  loop: "{{ nvme_tcp_specs.pvc_info | default([]) }}"
   when:
     - configure_nvme_tcp == true
-    - item is defined and item.pvc_name is defined
-    - item.access_modes is defined and 'ReadWriteMany' in item.access_modes
+    - nvme_tcp_specs is defined
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - 'ReadWriteMany' in item.access_modes
     - (item.volume_mode | default('Filesystem')) == 'Filesystem'
   tags:
     - k8s_create_nvme_tcp_pvcs
@@ -422,12 +448,16 @@
             storage: "{{ item.pvc_size }}"
         storageClassName: "{{ fcp_specs.sc_name }}"
         volumeMode: "{{ item.volume_mode | default('Filesystem') }}"
-  loop: "{{ fcp_specs.pvc_info }}"
+  loop: "{{ fcp_specs.pvc_info | default([]) }}"
   when:
     - configure_fcp == true
+    - fcp_specs is defined
+    - fcp_specs.sc_name is defined and fcp_specs.sc_name != ""
     - pvc_namespace is defined and pvc_namespace != ""
-    - item is defined and item.pvc_name is defined and item.pvc_name != ""
-    - not (item.access_modes is defined and 'ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.pvc_size is defined and item.pvc_size != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - not ('ReadWriteMany' in item.access_modes and (item.volume_mode | default('Filesystem')) == 'Filesystem')
   tags:
     - k8s_create_fcp_pvcs
 
@@ -435,11 +465,13 @@
 - name: Display warning for FCP PVCs with unsupported RWX + Filesystem configuration
   ansible.builtin.debug:
     msg: "WARNING: Skipping PVC '{{ item.pvc_name }}' - FCP does not support ReadWriteMany (RWX) access mode with Filesystem volume mode. Use ReadWriteMany (RWX) with Block volume mode."
-  loop: "{{ fcp_specs.pvc_info }}"
+  loop: "{{ fcp_specs.pvc_info | default([]) }}"
   when:
     - configure_fcp == true
-    - item is defined and item.pvc_name is defined
-    - item.access_modes is defined and 'ReadWriteMany' in item.access_modes
+    - fcp_specs is defined
+    - item.pvc_name is defined and item.pvc_name != ""
+    - item.access_modes is defined and item.access_modes | length > 0
+    - 'ReadWriteMany' in item.access_modes
     - (item.volume_mode | default('Filesystem')) == 'Filesystem'
   tags:
     - k8s_create_fcp_pvcs
@@ -498,15 +530,15 @@
         volumeSnapshotClassName: "{{ vol_snapshot_class_specs.name }}"
         source:
           persistentVolumeClaimName: "{{ item.pvc_name }}"
-  loop: "{{ volume_snapshot_specs }}"
+  loop: "{{ volume_snapshot_specs | default([]) }}"
   when:
     - pvc_namespace is defined and pvc_namespace != ""
     - vol_snapshot_class_specs is defined
     - vol_snapshot_class_specs.name is defined and vol_snapshot_class_specs.name != ""
-    - item is defined
     - item.snapshot_name is defined and item.snapshot_name != ""
     - item.pvc_name is defined and item.pvc_name != ""
-    - existing_pvcs is defined and existing_pvcs.resources is defined
+    - existing_pvcs is defined
+    - existing_pvcs.resources is defined
     - item.pvc_name in (existing_pvcs.resources | map(attribute='metadata.name') | list)
   tags:
     - k8s_create_volume_snapshots
@@ -515,11 +547,13 @@
 - name: Display warning for VolumeSnapshots with non-existent PVCs
   ansible.builtin.debug:
     msg: "WARNING: Skipping snapshot '{{ item.snapshot_name }}' - PVC '{{ item.pvc_name }}' does not exist in namespace '{{ pvc_namespace }}'"
-  loop: "{{ volume_snapshot_specs }}"
+  loop: "{{ volume_snapshot_specs | default([]) }}"
   when:
     - pvc_namespace is defined and pvc_namespace != ""
-    - existing_pvcs is defined and existing_pvcs.resources is defined
-    - item is defined and item.snapshot_name is defined and item.pvc_name is defined
+    - existing_pvcs is defined
+    - existing_pvcs.resources is defined
+    - item.snapshot_name is defined and item.snapshot_name != ""
+    - item.pvc_name is defined and item.pvc_name != ""
     - item.pvc_name not in (existing_pvcs.resources | map(attribute='metadata.name') | list)
   tags:
     - k8s_create_volume_snapshots
