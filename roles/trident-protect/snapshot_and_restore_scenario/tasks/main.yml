@@ -5,17 +5,31 @@
 # Note: Ensure that the snapshot schedule has created at least one snapshot before running the restore tasks here.
 
 # View the snapshots created by the snapshot schedule
-- name: Execute tridentctl-protect get snapshots command to view snapshots created by the snapshot schedule
-  ansible.builtin.command:
-    cmd: tridentctl-protect get snapshots -n {{ vm_namespace }}
+- name: Get snapshots created by the snapshot schedule
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: protect.trident.netapp.io/v1
+    kind: Snapshot
+    namespace: "{{ vm_namespace }}"
+    label_selectors:
+      - "applicationRef={{ application_name }}"
   register: snapshots_output
-  changed_when: false
   tags:
     - tp_view_snapshots
 
 - name: Display snapshots created for the application {{ application_name }} in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "{{ snapshots_output.stdout_lines }}"
+    msg: "{{ snapshots_output.resources | map(attribute='metadata.name') | list }}"
+  when: snapshots_output.resources | length > 0
+  tags:
+    - tp_view_snapshots
+
+- name: Display message if no snapshots found
+  ansible.builtin.debug:
+    msg: "No snapshots found for application {{ application_name }} in {{ vm_namespace }} namespace"
+  when: snapshots_output.resources | length == 0
   tags:
     - tp_view_snapshots
 

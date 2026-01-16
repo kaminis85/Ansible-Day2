@@ -20,6 +20,7 @@
       spec:
         applicationRef: "{{ application_name }}"
         appVaultRef: "{{ appvault_name }}"
+  when: on_demand_backup_name is defined and on_demand_backup_name != ""
   tags:
     - tp_create_ondemand_backup
 
@@ -42,6 +43,7 @@
     - backup_info.resources[0].status.state == "Completed"
   retries: 10
   delay: 30
+  when: on_demand_backup_name is defined and on_demand_backup_name != ""
   tags:
     - tp_wait_for_backup_completion
 
@@ -56,6 +58,7 @@
     namespace: "{{ vm_namespace }}"
     name: "{{ on_demand_backup_name }}"
   register: backup_output
+  when: on_demand_backup_name is defined and on_demand_backup_name != ""
   tags:
     - tp_verify_backup
 
@@ -78,6 +81,7 @@
       kind: Namespace
       metadata:
         name: "{{ restore_namespace }}"
+  when: restore_namespace is defined and restore_namespace != ""
   tags:
     - tp_create_restore_namespace
 
@@ -99,6 +103,7 @@
         appArchivePath: "{{ backup_output.resources[0].status.appArchivePath }}"
         backupRef: "{{ on_demand_backup_name }}"
         namespaceMapping: [{"source": "{{ vm_namespace }}", "destination": "{{ restore_namespace }}"}]
+  when: backup_restore_name is defined and backup_restore_name != ""
   tags:
     - tp_create_backuprestore
 
@@ -120,6 +125,7 @@
     - restore_info.resources[0].status.state == "Completed"
   retries: 30
   delay: 30
+  when: backup_restore_name is defined and backup_restore_name != ""
   tags:
     - tp_wait_for_backuprestore_completion
 
@@ -134,6 +140,7 @@
     namespace: "{{ restore_namespace }}"
     name: "{{ backup_restore_name }}"
   register: backuprestore_output
+  when: backup_restore_name is defined and backup_restore_name != ""
   tags:
     - tp_verify_backuprestore
 
