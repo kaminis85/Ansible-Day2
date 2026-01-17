@@ -13,25 +13,33 @@
     api_version: protect.trident.netapp.io/v1
     kind: Snapshot
     namespace: "{{ vm_namespace }}"
-    label_selectors:
-      - "applicationRef={{ application_name }}"
   register: snapshots_output
   tags:
     - tp_view_snapshots
+    - tp_create_snapshot_inplace_restore
+
+- name: Filter snapshots for the application {{ application_name }}
+  ansible.builtin.set_fact:
+    filtered_snapshots: "{{ snapshots_output.resources | selectattr('spec.applicationRef', 'defined') | selectattr('spec.applicationRef', 'equalto', application_name) | list }}"
+  tags:
+    - tp_view_snapshots
+    - tp_create_snapshot_inplace_restore
 
 - name: Display snapshots created for the application {{ application_name }} in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "{{ snapshots_output.resources | map(attribute='metadata.name') | list }}"
-  when: snapshots_output.resources | length > 0
+    msg: "{{ filtered_snapshots | map(attribute='metadata.name') | list }}"
+  when: filtered_snapshots | length > 0
   tags:
     - tp_view_snapshots
+    - tp_create_snapshot_inplace_restore
 
 - name: Display message if no snapshots found
   ansible.builtin.debug:
     msg: "No snapshots found for application {{ application_name }} in {{ vm_namespace }} namespace"
-  when: snapshots_output.resources | length == 0
+  when: filtered_snapshots | length == 0
   tags:
     - tp_view_snapshots
+    - tp_create_snapshot_inplace_restore
 
 # If your VMs have been corrupted or accidentally deleted, you can restore them to the original namespace using the snapshot created by the snapshot schedule.
 # Note: Ensure that the VMs and their associated resources are deleted from the original namespace before running the restore tasks here.
@@ -40,22 +48,37 @@
 # oc delete pvc <pvc-name> -n <vm-namespace>
 # Repeat the above commands for all VMs and their associated PVCs listed in the vm_list and pvc_list variables respectively under vars/trident_protect_main.yml
 
-# OR you can use the below task to automate the deletion of VMs and their associated resources using the tasks below.
-- name: Delete specific VMs and PVCs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
+# OR you can use the below tasks to automate the deletion of VMs and their associated resources.
+- name: Delete specific VMs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
   kubernetes.core.k8s:
     state: absent
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
     namespace: "{{ vm_namespace }}"
-    kind: "{{ item.kind }}"
-    name: "{{ item.name }}"
-  loop: "{{ query('flattened', [{'kind': 'VirtualMachine', 'name': vm} for vm in vm_list] + [{'kind': 'PersistentVolumeClaim', 'name': pvc} for pvc in pvc_list]) }}"
+    kind: VirtualMachine
+    name: "{{ item }}"
+  loop: "{{ vm_list }}"
   tags:
     - tp_delete_vms_and_pvcs
+    - tp_create_snapshot_inplace_restore
+
+- name: Delete specific PVCs in {{ vm_namespace }} namespace to simulate corruption or accidental deletion
+  kubernetes.core.k8s:
+    state: absent
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    namespace: "{{ vm_namespace }}"
+    kind: PersistentVolumeClaim
+    name: "{{ item }}"
+  loop: "{{ pvc_list }}"
+  tags:
+    - tp_delete_vms_and_pvcs
+    - tp_create_snapshot_inplace_restore
 
 # Verify that the VMs and their associated resources have been deleted from the original namespace
-- name: Verify that the VMs and their associated resources have been deleted from {{ vm_namespace }} namespace
+- name: Verify that the VMs have been deleted from {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
@@ -66,24 +89,83 @@
       - "category={{ vm_label }}"
   register: vm_deletion_check
   tags:
-    - tp_verify_vm_deletion
+    - tp_verify_vms_and_pvcs_deletion
+    - tp_create_snapshot_inplace_restore
 
-- name: Display message if no VMs found in {{ vm_namespace }} namespace
-  ansible.builtin.debug:
-    msg: "No VMs found in {{ vm_namespace }} namespace. Proceeding with restoration."
-  when: vm_deletion_check.resources | length == 0
+- name: Verify that the PVCs have been deleted from {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    kind: PersistentVolumeClaim
+    namespace: "{{ vm_namespace }}"
+    label_selectors:
+      - "category={{ vm_label }}"
+  register: pvc_deletion_check
   tags:
-    - tp_verify_vm_deletion
+    - tp_verify_vms_and_pvcs_deletion
+    - tp_create_snapshot_inplace_restore
 
-- name: Display message if VMs still exist in {{ vm_namespace }} namespace
+- name: Display message if no VMs and PVCs with label '{{ vm_label }}' found in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "VMs still exist in {{ vm_namespace }} namespace. Please delete them before proceeding with restoration."
-  failed_when: vm_deletion_check.resources | length > 0
+    msg: "No VMs and PVCs with label '{{ vm_label }}' found in {{ vm_namespace }} namespace. Proceeding with restoration."
+  when: 
+    - vm_deletion_check.resources | length == 0
+    - pvc_deletion_check.resources | length == 0
   tags:
-    - tp_verify_vm_deletion
+    - tp_verify_vms_and_pvcs_deletion
+    - tp_create_snapshot_inplace_restore
 
-# Create a SnapshotInplaceRestore object to restore VMs to the original namespace using the latest snapshot created by the snapshot schedule
-- name: Create a SnapshotInplaceRestore object to restore VMs to {{ vm_namespace }} namespace using the latest snapshot created by the snapshot schedule
+- name: Display message if VMs or PVCs with label '{{ vm_label }}' still exist in {{ vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "Deletion verification failed! Found {{ vm_deletion_check.resources | length }} VM(s) and {{ pvc_deletion_check.resources | length }} PVC(s) with label '{{ vm_label }}' still remaining in {{ vm_namespace }} namespace. Please delete them before proceeding with restoration."
+  when: (vm_deletion_check.resources | length > 0) or (pvc_deletion_check.resources | length > 0)
+  failed_when: (vm_deletion_check.resources | length > 0) or (pvc_deletion_check.resources | length > 0)
+  tags:
+    - tp_verify_vms_and_pvcs_deletion
+    - tp_create_snapshot_inplace_restore
+
+# Get the latest snapshot for restoration
+- name: Get the latest snapshot for application {{ application_name }} in {{ vm_namespace }} namespace
+  ansible.builtin.set_fact:
+    latest_snapshot: "{{ filtered_snapshots | sort(attribute='metadata.creationTimestamp', reverse=true) | first }}"
+  when: filtered_snapshots | length > 0
+  tags:
+    - tp_create_snapshot_inplace_restore
+
+- name: Display the snapshot that will be used for restoration
+  ansible.builtin.debug:
+    msg: "Using snapshot '{{ latest_snapshot.metadata.name }}' with appArchivePath '{{ latest_snapshot.status.appArchivePath }}' for restoration"
+  when: filtered_snapshots | length > 0
+  tags:
+    - tp_create_snapshot_inplace_restore
+
+# Verify that the snapshot has volume snapshots (not empty)
+- name: Check if the snapshot has volume snapshots
+  ansible.builtin.set_fact:
+    snapshot_has_volumes: "{{ latest_snapshot.status.volumeSnapshots is defined and latest_snapshot.status.volumeSnapshots | length > 0 }}"
+  when: filtered_snapshots | length > 0
+  tags:
+    - tp_create_snapshot_inplace_restore
+
+- name: Display snapshot volume snapshot count
+  ansible.builtin.debug:
+    msg: "Snapshot '{{ latest_snapshot.metadata.name }}' contains {{ latest_snapshot.status.volumeSnapshots | default([]) | length }} volume snapshot(s)"
+  when: filtered_snapshots | length > 0
+  tags:
+    - tp_create_snapshot_inplace_restore
+
+- name: Fail if snapshot is empty (no volume snapshots)
+  ansible.builtin.fail:
+    msg: "Cannot proceed with restoration! Snapshot '{{ latest_snapshot.metadata.name }}' is empty (no volume snapshots found). This means no VMs with label '{{ vm_label }}' existed when the snapshot was taken. Please ensure VMs have the correct labels and wait for a new snapshot to be created."
+  when: 
+    - filtered_snapshots | length > 0
+    - not snapshot_has_volumes
+  tags:
+    - tp_create_snapshot_inplace_restore
+
+# Create a SnapshotInplaceRestore object to restore VMs to the original namespace using the latest snapshot's appArchivePath
+- name: Create a SnapshotInplaceRestore object to restore VMs to {{ vm_namespace }} namespace using appArchivePath
   kubernetes.core.k8s:
     state: present
     host: "{{ oc_api_url }}"
@@ -98,9 +180,10 @@
       spec:
         applicationRef: "{{ application_name }}"
         appVaultRef: "{{ appvault_name }}"
-        snapshotSource:
-          kind: SnapshotSchedule
-          name: "{{ snapshot_schedule_name }}"
+        appArchivePath: "{{ latest_snapshot.status.appArchivePath }}"
+  when: 
+    - filtered_snapshots | length > 0
+    - snapshot_has_volumes
   tags:
     - tp_create_snapshot_inplace_restore
 
@@ -114,24 +197,39 @@
     kind: SnapshotInplaceRestore
     name: "{{ snapshot_inplace_restore_name }}"
   register: snapshot_restore_info
-  until: snapshot_restore_info.resources[0].status.phase == "Completed"
-  retries: 10
+  until: >
+    snapshot_restore_info.resources | length > 0 and
+    snapshot_restore_info.resources[0].status is defined and
+    snapshot_restore_info.resources[0].status.state is defined and
+    snapshot_restore_info.resources[0].status.state == "Completed"
+  retries: 30
   delay: 30
   tags:
     - tp_wait_for_snapshot_restore_completion
 
 # Verify that the SnapshotInplaceRestore object was created successfully
-- name: Execute tridentctl-protect get snapshotinplacerestore command to verify SnapshotInplaceRestore creation
-  ansible.builtin.command:
-    cmd: tridentctl-protect get snapshotinplacerestore -n {{ vm_namespace }}
+- name: Get SnapshotInplaceRestore objects in {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: protect.trident.netapp.io/v1
+    kind: SnapshotInplaceRestore
+    namespace: "{{ vm_namespace }}"
   register: snapshot_restore_output
-  changed_when: false
   tags:
     - tp_verify_snapshot_inplace_restore
 
-- name: Verify that the SnapshotInplaceRestore {{ snapshot_inplace_restore_name }} was created successfully
+- name: Display SnapshotInplaceRestore details for {{ snapshot_inplace_restore_name }}
   ansible.builtin.debug:
-    msg: "{{ snapshot_restore_output.stdout_lines }}"
+    msg: 
+      - "Name: {{ item.metadata.name }}"
+      - "State: {{ item.status.state | default('N/A') }}"
+      - "Application: {{ item.spec.applicationRef }}"
+      - "AppVault: {{ item.spec.appVaultRef }}"
+      - "Creation Time: {{ item.metadata.creationTimestamp }}"
+  loop: "{{ snapshot_restore_output.resources }}"
+  when: snapshot_restore_output.resources | length > 0
   tags:
     - tp_verify_snapshot_inplace_restore
 
@@ -154,13 +252,31 @@
       - "category={{ vm_label }}"
   register: restored_vms_and_pvcs
   tags:
-    - tp_verify_restored_vms_and_pvcs_test
+    - tp_verify_restored_vms_and_pvcs
 
-- name: Show restored VMs and PVCs details in {{ vm_namespace }} namespace
+- name: Display restored VMs in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.name }}"
-  loop: "{{ restored_vms_and_pvcs.results }}"
+    msg: "Restored VM: {{ item.metadata.name }}"
+  loop: "{{ restored_vms_and_pvcs.results[0].resources }}"
+  when: restored_vms_and_pvcs.results[0].resources | length > 0
   tags:
-    - tp_verify_restored_vms_and_pvcs_test
+    - tp_verify_restored_vms_and_pvcs
+
+- name: Display restored PVCs in {{ vm_namespace }} namespace
+  ansible.builtin.debug:
+    msg: "Restored PVC: {{ item.metadata.name }}"
+  loop: "{{ restored_vms_and_pvcs.results[1].resources }}"
+  when: restored_vms_and_pvcs.results[1].resources | length > 0
+  tags:
+    - tp_verify_restored_vms_and_pvcs
+
+- name: Display summary of restored resources
+  ansible.builtin.debug:
+    msg:
+      - "Restoration Summary:"
+      - "Total VMs restored: {{ restored_vms_and_pvcs.results[0].resources | length }}"
+      - "Total PVCs restored: {{ restored_vms_and_pvcs.results[1].resources | length }}"
+  tags:
+    - tp_verify_restored_vms_and_pvcs
 
 # End of Snapshot and Restore Scenario tasks
