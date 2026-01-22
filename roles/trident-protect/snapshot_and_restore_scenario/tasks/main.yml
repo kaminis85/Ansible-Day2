@@ -178,7 +178,6 @@
       metadata:
         name: "{{ snapshot_inplace_restore_name }}"  # Name of the SnapshotInplaceRestore object used for restoration
       spec:
-        applicationRef: "{{ application_name }}"
         appVaultRef: "{{ appvault_name }}"
         appArchivePath: "{{ latest_snapshot.status.appArchivePath }}"
   when: 
@@ -205,7 +204,7 @@
   retries: 30
   delay: 30
   tags:
-    - tp_wait_for_snapshot_restore_completion
+    - tp_wait_for_snapshot_inplace_restore_completion
 
 # Verify that the SnapshotInplaceRestore object was created successfully
 - name: Get SnapshotInplaceRestore objects in {{ vm_namespace }} namespace
@@ -225,8 +224,8 @@
     msg: 
       - "Name: {{ item.metadata.name }}"
       - "State: {{ item.status.state | default('N/A') }}"
-      - "Application: {{ item.spec.applicationRef }}"
       - "AppVault: {{ item.spec.appVaultRef }}"
+      - "AppArchivePath: {{ item.spec.appArchivePath }}"
       - "Creation Time: {{ item.metadata.creationTimestamp }}"
   loop: "{{ snapshot_restore_output.resources }}"
   when: snapshot_restore_output.resources | length > 0
@@ -239,44 +238,61 @@
 # Repeat the above commands for all VMs and their associated PVCs listed in the vm_list and pvc_list variables respectively under vars/trident_protect_main.yml
 
 # Verify that the VMs and their associated resources have been restored to the original namespace
-- name: Verify that the VMs and their corresponding PVCs have been restored to {{ vm_namespace }} namespace
+- name: Verify that the VMs have been restored to {{ vm_namespace }} namespace
   kubernetes.core.k8s_info:
     host: "{{ oc_api_url }}"
     api_key: "{{ oc_api_token }}"
     validate_certs: false
-    kind:
-      - VirtualMachine
-      - PersistentVolumeClaim
+    api_version: kubevirt.io/v1
+    kind: VirtualMachine
     namespace: "{{ vm_namespace }}"
     label_selectors:
       - "category={{ vm_label }}"
-  register: restored_vms_and_pvcs
+  register: restored_vms_info
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_snapshotinplacerestore_vms
+    - tp_verify_snapshotinplacerestore_all
+
+- name: Verify that the PVCs have been restored to {{ vm_namespace }} namespace
+  kubernetes.core.k8s_info:
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+    api_version: v1
+    kind: PersistentVolumeClaim
+    namespace: "{{ vm_namespace }}"
+    label_selectors:
+      - "category={{ vm_label }}"
+  register: restored_pvcs_info
+  tags:
+    - tp_verify_snapshotinplacerestore_pvcs
+    - tp_verify_snapshotinplacerestore_all
 
 - name: Display restored VMs in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "Restored VM: {{ item.metadata.name }}"
-  loop: "{{ restored_vms_and_pvcs.results[0].resources }}"
-  when: restored_vms_and_pvcs.results[0].resources | length > 0
+    msg: "Restored VM: {{ item }}"
+  loop: "{{ restored_vms_info.resources | map(attribute='metadata.name') | list }}"
+  when: restored_vms_info.resources | length > 0
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_snapshotinplacerestore_vms
+    - tp_verify_snapshotinplacerestore_all
 
 - name: Display restored PVCs in {{ vm_namespace }} namespace
   ansible.builtin.debug:
-    msg: "Restored PVC: {{ item.metadata.name }}"
-  loop: "{{ restored_vms_and_pvcs.results[1].resources }}"
-  when: restored_vms_and_pvcs.results[1].resources | length > 0
+    msg: "Restored PVC: {{ item }}"
+  loop: "{{ restored_pvcs_info.resources | map(attribute='metadata.name') | list }}"
+  when: restored_pvcs_info.resources | length > 0
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_snapshotinplacerestore_pvcs
+    - tp_verify_snapshotinplacerestore_all
 
 - name: Display summary of restored resources
   ansible.builtin.debug:
     msg:
       - "Restoration Summary:"
-      - "Total VMs restored: {{ restored_vms_and_pvcs.results[0].resources | length }}"
-      - "Total PVCs restored: {{ restored_vms_and_pvcs.results[1].resources | length }}"
+      - "Total VMs restored: {{ restored_vms_info.resources | length }}"
+      - "Total PVCs restored: {{ restored_pvcs_info.resources | length }}"
   tags:
-    - tp_verify_restored_vms_and_pvcs
+    - tp_verify_snapshotinplacerestore_all
 
 # End of Snapshot and Restore Scenario tasks

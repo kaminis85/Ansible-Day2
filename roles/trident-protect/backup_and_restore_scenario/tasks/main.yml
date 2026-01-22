@@ -209,8 +209,8 @@
 
 - name: Show restored VM details in {{ restore_namespace | default('') }} namespace
   ansible.builtin.debug:
-    msg: "{{ item.metadata.name }}"
-  loop: "{{ restored_vms_info.resources | default([]) }}"
+    msg: "Restored VM: {{ item }}"
+  loop: "{{ restored_vms_info.resources | default([]) | map(attribute='metadata.name') | list }}"
   when: restored_vms_info.resources is defined and restored_vms_info.resources | length > 0
   tags:
     - tp_verify_backuprestore_vms
@@ -218,8 +218,8 @@
 
 - name: Show restored PVC details in {{ restore_namespace | default('') }} namespace
   ansible.builtin.debug:
-    msg: "{{ item.metadata.name }}"
-  loop: "{{ restored_pvcs_info.resources | default([]) }}"
+    msg: "Restored PVC: {{ item }}"
+  loop: "{{ restored_pvcs_info.resources | default([]) | map(attribute='metadata.name') | list }}"
   when: restored_pvcs_info.resources is defined and restored_pvcs_info.resources | length > 0
   tags:
     - tp_verify_backuprestore_pvcs

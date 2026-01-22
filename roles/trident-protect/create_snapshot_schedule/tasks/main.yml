@@ -31,10 +31,6 @@
     - appvault_name is defined and appvault_name != ""
     - vm_namespace is defined and vm_namespace != ""
     - snapshot_granularity is defined and snapshot_granularity != ""
-    - snapshot_hour is defined and snapshot_hour != ""
-    - snapshot_day_of_month is defined and snapshot_day_of_month != ""
-    - snapshot_day_of_week is defined and snapshot_day_of_week != ""
-    - snapshot_minute is defined and snapshot_minute != ""
     - snapshot_retention_count is defined and snapshot_retention_count != ""
   tags:
     - tp_create_snapshot_schedule
