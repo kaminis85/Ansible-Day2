@@ -44,7 +44,7 @@ on_demand_backup_name: "demo-vms-backup-on-demand"  # Name of the on-demand back
 restore_namespace: "demo2"                          # Namespace to which VMs will be restored
 
 # BackupRestore object name
-backup_restore_name: "demo2-vms-restore-from-backup"            # Name of the BackupRestore object used for restoration
+backuprestore_name: "demo2-vms-restore-from-backup"            # Name of the BackupRestore object used for restoration
 
 ## Scheduled Snapshot and Restore related variables
 # Note: Snapshot schedules will be created in the same namespace as the VMs
@@ -59,7 +59,7 @@ snapshot_day_of_month: ""                                  # Day of the month fo
 snapshot_day_of_week: ""                                   # Day of the week for Weekly snapshots (0=Sunday to 6=Saturday)
 
 # SnapshotInplaceRestore object name
-snapshot_inplace_restore_name: "demo-vms-restore-from-snapshot"  # Name of the SnapshotInplaceRestore object used for restoration
+snapshotinplacerestore_name: "demo-vms-restore-from-snapshot"  # Name of the SnapshotInplaceRestore object used for restoration
 
 # VM Replication using NetApp SnapMirror and Trident protect related variables
 
