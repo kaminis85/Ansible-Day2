@@ -41,9 +41,9 @@
       metadata:
         name: "{{ appvault_secret_name | default('') }}"   # Name of your secret
       type: Opaque
-      stringData:
-        accessKeyID: "{{ s3_access_key | default('') }}"
-        secretAccessKey: "{{ s3_secret_key | default('') }}"
+      data:
+        accessKeyID: "{{ s3_access_key | default('') | b64encode }}"
+        secretAccessKey: "{{ s3_secret_key | default('') | b64encode }}"
   when:
     - appvault_secret_name is defined and appvault_secret_name != ""
     - s3_access_key is defined and s3_access_key != ""

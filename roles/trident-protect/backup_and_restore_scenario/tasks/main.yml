@@ -69,6 +69,7 @@
     - vm_namespace is defined and vm_namespace != ""
   tags:
     - tp_verify_backup
+    - tp_create_backuprestore
 
 - name: Display backup details
   ansible.builtin.debug:
@@ -78,6 +79,7 @@
     - backup_output.resources | length > 0
   tags:
     - tp_verify_backup
+    - tp_create_backuprestore
 
 # Create a new namespace for restoration
 - name: Create a new {{ restore_namespace | default('') }} namespace to which you want to restore the VMs
@@ -94,6 +96,7 @@
   when: restore_namespace is defined and restore_namespace != ""
   tags:
     - tp_create_restore_namespace
+    - tp_create_backuprestore
 
 # Create a BackupRestore object to restore the VMs from the on-demand backup to a different namespace
 - name: Create a BackupRestore object to restore the VMs from the on-demand backup to {{ restore_namespace | default('') }} namespace
