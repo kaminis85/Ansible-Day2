@@ -7,7 +7,7 @@
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/trident-protect-common, tags: [ 'trident-protect-common' ] }
+  - { role: trident-protect/trident_protect_common, tags: [ 'trident_protect_common' ] }
   tags:
   - tp_common_tasks
 
