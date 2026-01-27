@@ -107,21 +107,6 @@
 #     - dr_simulate_disaster
 #     - dr_delete_vms
 # 
-# # Optional: Delete the source namespace to simulate complete cluster failure
-# - name: Delete source namespace {{ src_vm_namespace }} to simulate complete cluster failure
-#   kubernetes.core.k8s:
-#     state: absent
-#     host: "{{ src_oc_api_url }}"
-#     api_key: "{{ src_oc_api_token }}"
-#     validate_certs: false
-#     kind: Namespace
-#     api_version: v1
-#     name: "{{ src_vm_namespace }}"
-#   when: dr_delete_namespace is defined and dr_delete_namespace | bool
-#   tags:
-#     - dr_simulate_disaster
-#     - dr_delete_namespace
-# 
 # # Wait for disaster simulation to complete
 # - name: Wait for disaster simulation to complete
 #   ansible.builtin.pause:
@@ -161,3 +146,4 @@
         desiredState: "Promoted"
   tags:
     - failover_to_dst_cluster
+

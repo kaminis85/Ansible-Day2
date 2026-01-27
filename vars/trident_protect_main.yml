@@ -154,14 +154,8 @@ app_mirror_relationship_specs:
 # Note: Adjust dtstart and rrule as per your requirements
 
 # Disaster simulation on source cluster related variables
-# Uncomment and set the below variables to control disaster simulation behavior
-# These variables control the level of disaster simulation on the source cluster
+# Uncomment and set the below variable to control disaster simulation behavior
 
 # dr_delete_vms: false                   # Set to true to delete VMs completely (more severe disaster simulation)
 # When false, VMs are only stopped (running: false)
 # When true, VMs are deleted entirely from the source cluster
-
-# dr_delete_namespace: false             # Set to true to delete the entire source namespace (complete cluster failure simulation)
-# WARNING: This is the most severe disaster simulation
-# When true, the entire source namespace and all resources within it will be deleted
-# Only set to true if you want to simulate a complete data center or cluster failure
