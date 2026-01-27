@@ -219,8 +219,8 @@
     api_version: protect.trident.netapp.io/v1
     name: "{{ src_application_name }}"
     namespace: "{{ src_vm_namespace }}"
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
   register: src_application_info
   tags:

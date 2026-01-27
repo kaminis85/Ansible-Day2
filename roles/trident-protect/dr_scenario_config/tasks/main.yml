@@ -143,3 +143,21 @@
 #   tags:
 #     - dr_simulate_disaster
 
+# Failover replicated VMs to the destination OpenShift cluster
+# On the destination OpenShift cluster, update the AppMirrorRelationship to promote it (failover)
+- name: Promote AppMirrorRelationship on the destination OpenShift cluster to activate replicated VMs
+  kubernetes.core.k8s:
+    state: present
+    host: "{{ dst_oc_api_url }}"
+    api_key: "{{ dst_oc_api_token }}"
+    validate_certs: false
+    namespace: "{{ dst_vm_namespace }}"
+    definition:
+      apiVersion: protect.trident.netapp.io/v1
+      kind: AppMirrorRelationship
+      metadata:
+        name: "{{ app_mirror_relationship_specs.name }}"
+      spec:
+        desiredState: "Promoted"
+  tags:
+    - failover_to_dst_cluster

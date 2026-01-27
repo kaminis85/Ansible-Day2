@@ -23,8 +23,8 @@
 - name: Create Kubernetes Secret to store source ONTAP S3 credentials
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: trident-protect
     definition:
@@ -56,8 +56,8 @@
 - name: Create an AppVault for the source VMs on the source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: trident-protect
     definition:
@@ -116,8 +116,8 @@
 
 - name: Verify source VMs namespace {{ src_vm_namespace }} exists
   kubernetes.core.k8s_info:
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     api_version: v1
     kind: Namespace
@@ -133,8 +133,8 @@
 - name: Label VMs and PVCs in source namespace {{ src_vm_namespace }} for backup/snapshot
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     kind: "{{ item.kind }}"
@@ -151,8 +151,8 @@
 # Verify labels on VMs and PVCs in source namespace
 - name: Verify labels on VMs and PVCs in source namespace {{ src_vm_namespace}}
   kubernetes.core.k8s_info:
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     kind: "{{ item.kind }}"
@@ -176,8 +176,8 @@
 - name: Create the source application CR for the VMs using label selector on the source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     definition:
@@ -232,8 +232,8 @@
 - name: Create a snapshot schedule for the source application {{ src_application_name }} on the source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     definition:
@@ -292,8 +292,8 @@
 - name: Create an on-demand snapshot for the source application {{ src_application_name }} on the source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ oc_api_url }}"
-    api_key: "{{ oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     definition:
