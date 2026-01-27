@@ -212,6 +212,28 @@
     - dst_preflight
     - dst_app_mirror_relationship_create
 
+# Fetch the source application UID from the source OpenShift cluster
+- name: Get source application UID from the source OpenShift cluster
+  kubernetes.core.k8s_info:
+    kind: Application
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ src_application_name }}"
+    namespace: "{{ src_vm_namespace }}"
+    host: "{{ oc_api_url }}"
+    api_key: "{{ oc_api_token }}"
+    validate_certs: false
+  register: src_application_info
+  tags:
+    - dst_app_mirror_relationship_create
+
+# Extract the source application UID
+- name: Set source application UID as a variable
+  ansible.builtin.set_fact:
+    src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
+  when: src_application_info.resources | length > 0
+  tags:
+    - dst_app_mirror_relationship_create
+
 # On the destination OpenShift cluster, create an AppMirrorRelationship CR to replicate VMs from source to destination
 - name: Create an AppMirrorRelationship CR to replicate VMs from source to destination on the destination OpenShift cluster
   kubernetes.core.k8s:
@@ -230,6 +252,7 @@
         destinationAppVaultRef: "{{ dst_appvault_name }}"
         sourceAppVaultRef: "{{ src_appvault_name }}"
         sourceApplicationName: "{{ src_application_name }}"
+        sourceApplicationUID: "{{ src_application_uid }}"
         storageClassName: "{{ app_mirror_relationship_specs.storage_class }}"
         namespaceMapping:
           - destination: "{{ dst_vm_namespace }}"

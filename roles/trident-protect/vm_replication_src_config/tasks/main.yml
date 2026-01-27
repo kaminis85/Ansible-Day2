@@ -39,8 +39,8 @@
   tags:
     - src_ontap_s3_secret_create
 
-# Preflight validation - Validate AppVault and Application configuration related variables
-- name: Validate AppVault and Application configuration related variables
+# Preflight validation - Validate Source AppVault and Application configuration related variables
+- name: Validate Source AppVault and Application configuration related variables
   ansible.builtin.assert:
     that:
       - src_appvault_name is defined
