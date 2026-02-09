@@ -1,6 +1,7 @@
 ---
 # Ansible tasks for setting up AppMirrorRelationship (AMR) for VM replication from source to destination OpenShift cluster using NetApp SnapMirror and Trident protect.
 # Ansible tasks for VM replication using NetApp SnapMirror and Trident protect in OpenShift Virtualization environment.
+
 # The below tasks are executed on the source OpenShift cluster. Ensure that you have access to the source cluster before running these tasks.
 # These tasks create necessary resources such as Kubernetes Secrets, AppVaults, Applications, and Snapshots on the source cluster.
 
@@ -329,8 +330,7 @@
   tags:
     - src_on_demand_snapshot_view
 
-# Ansible tasks for VM replication using NetApp SnapMirror and Trident protect in OpenShift Virtualization environment.
-# The below tasks are executed on the destination OpenShift cluster. Ensure that you have access to the destination cluster before running these tasks.
+# Note: The below tasks are executed on the destination OpenShift cluster. Ensure that you have access to the destination cluster before running these tasks.
 
 # On the destination OpenShift cluster, create a new namespace for destination VMs if it does not exist
 - name: Create destination namespace {{ dst_vm_namespace }} on the destination OpenShift cluster
