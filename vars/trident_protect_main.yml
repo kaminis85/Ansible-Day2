@@ -98,7 +98,7 @@ src_vm_label: "replicate-src-vms"    # Label to identify source VMs & associated
 src_application_name: "demo-src-vms-app"    # Application name for source VMs
 
 # If doing on-demand snapshot, set the below variable to true
-on_demand_src_snapshot: false                 # Set to true to perform on-demand snapshot for source VMs before replication
+src_on_demand_snapshot: false                 # Set to true to perform on-demand snapshot for source VMs before replication
 
 # On-demand snapshot name for source VMs [Required for replication if on_demand_src_snapshot is true]
 src_on_demand_snapshot_specs:
@@ -106,12 +106,12 @@ src_on_demand_snapshot_specs:
   reclaim_policy: "Retain"                     # Reclaim policy for the on-demand snapshot (e.g., Retain, Delete)
 
 # If doing scheduled snapshot, set the below variable to true
-scheduled_src_snapshot: true                  # Set to true to perform scheduled snapshots for source VMs before replication
+src_scheduled_snapshot: true                  # Set to true to perform scheduled snapshots for source VMs before replication
 
 # Snapshot schedule specifications for source VMs [Required for replication if scheduled_src_snapshot is true]
 src_snapshot_schedule_specs:
   name: "demo-src-vms-snapshot-schedule"        # Name of the snapshot schedule for source VMs
-  reclaim_policy: "Retain"                      # Reclaim policy for snapshots of source VMs (e.g., Retain, Delete)
+  snapshot_reclaim_policy: "Retain"                      # Reclaim policy for snapshots of source VMs (e.g., Retain, Delete)
   retention_count: 2                            # Number of snapshots to retain for source VMs
   recurrence_rule: {dtstart: "20251030T120000Z", rrule: "FREQ=MINUTELY;INTERVAL=5"}  # Recurrence rule for source VM snapshots. Example: Every 5 minutes starting from Oct 17, 2025, 00:02 UTC
 # Note: Adjust dtstart and rrule as per your requirements
