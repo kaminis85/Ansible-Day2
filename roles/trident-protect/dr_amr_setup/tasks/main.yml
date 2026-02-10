@@ -96,8 +96,8 @@
           s3:
             bucketName: "{{ src_ontap_s3_specs.s3_bucket_name }}"
             endpoint: "{{ src_ontap_s3_specs.s3_endpoint }}"
-            secure: false
-            skipCertValidation: true
+            secure: "false"
+            skipCertValidation: "true"
         providerCredentials:
           accessKeyID:
             valueFromSecret:
