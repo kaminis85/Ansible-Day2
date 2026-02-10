@@ -60,3 +60,16 @@
 
 # Note: To execute this playbook, run the following command from the directory where this file is located:
 # ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_snapshot_and_restore_tasks
+
+# Execute the below Trident protect role to execute Disaster Recovery (DR) scenario tasks.
+# These consist of roles to configure AMR, failover and failback of VMs in OpenShift Virtualization using Trident protect and SnapMirror.
+- name: Execute Disaster Recovery scenario tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_amr_setup, tags: [ 'dr_amr_setup' ] }
+  tags:
+  - tp_disaster_recovery_tasks
