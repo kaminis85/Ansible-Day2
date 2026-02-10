@@ -554,8 +554,8 @@
           s3:
             bucketName: "{{ src_ontap_s3_specs.s3_bucket_name }}"
             endpoint: "{{ src_ontap_s3_specs.s3_endpoint }}"    # Provide LIF for S3 access
-            secure: false
-            skipCertValidation: true
+            secure: "false"
+            skipCertValidation: "true"
         providerCredentials:
           accessKeyID:
             valueFromSecret:
@@ -647,8 +647,8 @@
           s3:
             bucketName: "{{ dst_ontap_s3_specs.s3_bucket_name }}"
             endpoint: "{{ dst_ontap_s3_specs.s3_endpoint }}"    # Provide LIF for S3 access
-            secure: false
-            skipCertValidation: true
+            secure: "false"
+            skipCertValidation: "true"
         providerCredentials:
           accessKeyID:
             valueFromSecret:
