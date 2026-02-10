@@ -177,7 +177,7 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     kind: VirtualMachine
-    merge_type: strategic-merge
+    merge_type: merge
     definition:
       metadata:
         namespace: "{{ src_vm_namespace }}"
