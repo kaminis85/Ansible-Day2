@@ -226,7 +226,7 @@
 
 - name: Display labels on VMs in source namespace {{ src_vm_namespace}}
   ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.labels }}"
+    msg: "VM '{{ item.resources[0].metadata.name }}' has category label: {{ item.resources[0].metadata.labels.category | default('not set') }}"
   loop: "{{ src_vm_label_info.results }}"
   when: item.resources is defined and item.resources | length > 0
   tags:
@@ -250,7 +250,7 @@
 
 - name: Display labels on PVCs in source namespace {{ src_vm_namespace}}
   ansible.builtin.debug:
-    msg: "{{ item.resources[0].metadata.labels }}"
+    msg: "PVC '{{ item.resources[0].metadata.name }}' has category label: {{ item.resources[0].metadata.labels.category | default('not set') }}"
   loop: "{{ src_pvc_label_info.results }}"
   when: item.resources is defined and item.resources | length > 0
   tags:
