@@ -732,6 +732,7 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
+    wait: false
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppMirrorRelationship
@@ -793,7 +794,7 @@
     dst_amr_state.resources | length > 0 and
     dst_amr_state.resources[0].status.state is defined and
     dst_amr_state.resources[0].status.state == "Established"
-  retries: 30
+  retries: 60
   delay: 30
   changed_when: false
   tags:
