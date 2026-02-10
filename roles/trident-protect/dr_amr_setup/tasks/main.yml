@@ -777,3 +777,34 @@
   when: dst_appmirrorrelationship_info.resources | length > 0
   tags:
     - dst_appmirrorrelationship_verify
+
+# Wait for the AppMirrorRelationship to reach the Established state
+- name: Wait for AppMirrorRelationship {{ appmirrorrelationship_specs.name }} to reach Established state
+  kubernetes.core.k8s_info:
+    kind: AppMirrorRelationship
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ appmirrorrelationship_specs.name }}"
+    namespace: "{{ dst_vm_namespace }}"
+    host: "{{ dst_oc_api_url }}"
+    api_key: "{{ dst_oc_api_token }}"
+    validate_certs: false
+  register: dst_amr_state
+  until: >
+    dst_amr_state.resources | length > 0 and
+    dst_amr_state.resources[0].status.state is defined and
+    dst_amr_state.resources[0].status.state == "Established"
+  retries: 30
+  delay: 30
+  changed_when: false
+  tags:
+    - dst_appmirrorrelationship_verify
+    - dst_appmirrorrelationship_wait_established
+
+# Display the AppMirrorRelationship state after establishment
+- name: Display AppMirrorRelationship state after reaching Established
+  ansible.builtin.debug:
+    msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' is now in '{{ dst_amr_state.resources[0].status.state }}' state"
+  when: dst_amr_state.resources | length > 0 and dst_amr_state.resources[0].status.state is defined
+  tags:
+    - dst_appmirrorrelationship_verify
+    - dst_appmirrorrelationship_wait_established
