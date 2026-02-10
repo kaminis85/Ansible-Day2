@@ -51,12 +51,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: "{{ src_ontap_s3_specs.secret_name }}"
+        namespace: trident-protect
       type: Opaque
       stringData:
         accessKeyID: "{{ src_ontap_s3_specs.access_key }}"
@@ -88,12 +88,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppVault
       metadata:
         name: "{{ src_appvault_name }}"
+        namespace: trident-protect
       spec:
         providerType: "OntapS3"
         providerConfig:
@@ -176,12 +176,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ src_vm_namespace }}"
     kind: VirtualMachine
-    name: "{{ item.name }}"
     merge_type: strategic-merge
     definition:
       metadata:
+        namespace: "{{ src_vm_namespace }}"
+        name: "{{ item.name }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_vm_list }}"
@@ -195,12 +195,13 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ src_vm_namespace }}"
     kind: PersistentVolumeClaim
     name: "{{ item.name }}"
     merge_type: strategic-merge
     definition:
       metadata:
+        namespace: "{{ src_vm_namespace }}"
+        name: "{{ item.name }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_pvc_list }}"
@@ -264,12 +265,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ src_vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: Application
       metadata:
         name: "{{ src_application_name }}"
+        namespace: "{{ src_vm_namespace }}"
       spec:
         includedNamespaces:
           - namespace: "{{ src_vm_namespace }}"
@@ -328,12 +329,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ src_vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: Schedule
       metadata:
         name: "{{ src_snapshot_schedule_specs.name }}"
+        namespace: "{{ src_vm_namespace }}"
       spec:
         appVaultRef: "{{ src_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
@@ -396,12 +397,12 @@
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ src_vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: Snapshot
       metadata:
         name: "{{ src_on_demand_snapshot_specs.name }}"
+        namespace: "{{ src_vm_namespace }}"
       spec:
         appVaultRef: "{{ src_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
@@ -505,12 +506,12 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: "{{ src_ontap_s3_specs.secret_name }}"
+        namespace: trident-protect
       type: Opaque
       stringData:
         accessKeyID: "{{ src_ontap_s3_specs.access_key }}"
@@ -542,12 +543,12 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppVault
       metadata:
         name: "{{ src_appvault_name }}"
+        namespace: trident-protect
       spec:
         providerType: "OntapS3"
         providerConfig:
@@ -598,12 +599,12 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: v1
       kind: Secret
       metadata:
         name: "{{ dst_ontap_s3_specs.secret_name }}"
+        namespace: trident-protect
       type: Opaque
       stringData:
         accessKeyID: "{{ dst_ontap_s3_specs.access_key }}"
@@ -635,12 +636,12 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    namespace: trident-protect
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppVault
       metadata:
         name: "{{ dst_appvault_name }}"
+        namespace: trident-protect
       spec:
         providerType: "OntapS3"
         providerConfig:
@@ -688,15 +689,15 @@
 - name: Validate variables for AppMirrorRelationship (AMR) configuration on the destination cluster
   ansible.builtin.assert:
     that:
-      - app_mirror_relationship_specs is defined
-      - app_mirror_relationship_specs is mapping
-      - app_mirror_relationship_specs.name is defined and app_mirror_relationship_specs.name | default('') | trim | length > 0
-      - app_mirror_relationship_specs.storage_class is defined and app_mirror_relationship_specs.storage_class | default('') | trim | length > 0
-      - app_mirror_relationship_specs.recurrence_rule is defined and app_mirror_relationship_specs.recurrence_rule is mapping
-      - app_mirror_relationship_specs.recurrence_rule.dtstart is defined and app_mirror_relationship_specs.recurrence_rule.dtstart | default('') | trim | length > 0
-      - app_mirror_relationship_specs.recurrence_rule.rrule is defined and app_mirror_relationship_specs.recurrence_rule.rrule | default('') | trim | length > 0
-    fail_msg: "AppMirrorRelationship related variables are not properly defined. Check vars/trident_protect_main.yml"
-    success_msg: "AppMirrorRelationship related variables validated successfully"
+      - appmirrorrelationship_specs is defined
+      - appmirrorrelationship_specs is mapping
+      - appmirrorrelationship_specs.name is defined and appmirrorrelationship_specs.name | default('') | trim | length > 0
+      - appmirrorrelationship_specs.storage_class is defined and appmirrorrelationship_specs.storage_class | default('') | trim | length > 0
+      - appmirrorrelationship_specs.recurrence_rule is defined and appmirrorrelationship_specs.recurrence_rule is mapping
+      - appmirrorrelationship_specs.recurrence_rule.dtstart is defined and appmirrorrelationship_specs.recurrence_rule.dtstart | default('') | trim | length > 0
+      - appmirrorrelationship_specs.recurrence_rule.rrule is defined and appmirrorrelationship_specs.recurrence_rule.rrule | default('') | trim | length > 0
+    fail_msg: "Variables for AppMirrorRelationship configuration are not properly defined. Check vars/trident_protect_main.yml"
+    success_msg: "Variables for AppMirrorRelationship configuration validated successfully"
   tags:
     - dst_preflight
     - dst_appmirrorrelationship_create
@@ -712,11 +713,13 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
   register: src_application_info
+  changed_when: false
+  failed_when: src_application_info.resources | length == 0
   tags:
     - dst_appmirrorrelationship_create
 
 # Extract the source application UID
-- name: Set source application UID as a variable
+- name: Set source application UID as fact for AMR creation
   ansible.builtin.set_fact:
     src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
   when: src_application_info.resources | length > 0
@@ -724,18 +727,18 @@
     - dst_appmirrorrelationship_create
 
 # On the destination OpenShift cluster, create an AppMirrorRelationship CR to replicate VMs from source to destination
-- name: Create an AppMirrorRelationship CR to replicate VMs from source to destination on the destination OpenShift cluster
+- name: Create an AppMirrorRelationship CR on destination OpenShift cluster to replicate VMs from source to destination
   kubernetes.core.k8s:
     state: present
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    namespace: "{{ dst_vm_namespace }}"
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppMirrorRelationship
       metadata:
         name: "{{ appmirrorrelationship_specs.name }}"
+        namespace: "{{ dst_vm_namespace }}"
       spec:
         desiredState: "Established"
         destinationAppVaultRef: "{{ dst_appvault_name }}"
@@ -753,18 +756,25 @@
     - dst_appmirrorrelationship_create
 
 # View the AppMirrorRelationship details on the destination OpenShift cluster
-- name: Execute tridentctl-protect get appmirrorrelationship command to verify AppMirrorRelationship creation on the destination OpenShift cluster
-  ansible.builtin.command:
-    cmd: tridentctl-protect get appmirrorrelationship "{{ appmirrorrelationship_specs.name }}" -n "{{ dst_vm_namespace }}"
+- name: Get AppMirrorRelationship details to verify creation on the destination OpenShift cluster
+  kubernetes.core.k8s_info:
+    kind: AppMirrorRelationship
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ appmirrorrelationship_specs.name }}"
+    namespace: "{{ dst_vm_namespace }}"
+    host: "{{ dst_oc_api_url }}"
+    api_key: "{{ dst_oc_api_token }}"
+    validate_certs: false
   register: dst_appmirrorrelationship_info
   changed_when: false
+  failed_when: dst_appmirrorrelationship_info.resources | length == 0
   tags:
-    - dst_appmirrorrelationship_view
+    - dst_appmirrorrelationship_verify
 
 # Display the AppMirrorRelationship details created on the destination OpenShift cluster
 - name: Display AppMirrorRelationship information created in {{ dst_vm_namespace }} namespace on the destination OpenShift cluster
   ansible.builtin.debug:
-    msg: "{{ dst_appmirrorrelationship_info.stdout_lines }}"
-  when: dst_appmirrorrelationship_info is defined
+    var: dst_appmirrorrelationship_info.resources[0]
+  when: dst_appmirrorrelationship_info.resources | length > 0
   tags:
-    - dst_appmirrorrelationship_view
+    - dst_appmirrorrelationship_verify
