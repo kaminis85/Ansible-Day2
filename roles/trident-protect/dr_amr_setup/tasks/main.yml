@@ -24,8 +24,6 @@
   tags:
     - src_preflight
     - dst_preflight
-    - src_ontap_s3_secret_create
-    - src_appvault_create
 
 # Verify trident-protect namespace exists on the source cluster
 - name: Verify trident-protect namespace exists on the source OpenShift cluster
@@ -41,8 +39,6 @@
   changed_when: false
   tags:
     - src_preflight
-    - src_ontap_s3_secret_create
-    - src_appvault_create
 
 # Create Kubernetes Secret to store source ONTAP S3 credentials
 - name: Create Kubernetes Secret to store source ONTAP S3 credentials
