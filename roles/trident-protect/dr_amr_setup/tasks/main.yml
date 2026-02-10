@@ -181,7 +181,7 @@
     definition:
       metadata:
         namespace: "{{ src_vm_namespace }}"
-        name: "{{ item.name }}"
+        name: "{{ item }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_vm_list }}"
@@ -196,12 +196,11 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     kind: PersistentVolumeClaim
-    name: "{{ item.name }}"
     merge_type: strategic-merge
     definition:
       metadata:
         namespace: "{{ src_vm_namespace }}"
-        name: "{{ item.name }}"
+        name: "{{ item }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_pvc_list }}"
@@ -217,7 +216,7 @@
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     kind: VirtualMachine
-    name: "{{ item.name }}"
+    name: "{{ item }}"
   loop: "{{ src_vm_list }}"
   register: src_vm_label_info
   changed_when: false
@@ -241,7 +240,7 @@
     validate_certs: false
     namespace: "{{ src_vm_namespace }}"
     kind: PersistentVolumeClaim
-    name: "{{ item.name }}"
+    name: "{{ item }}"
   loop: "{{ src_pvc_list }}"
   register: src_pvc_label_info
   changed_when: false
