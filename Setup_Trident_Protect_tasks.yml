@@ -63,13 +63,41 @@
 
 # Execute the below Trident protect role to execute Disaster Recovery (DR) scenario tasks.
 # These consist of roles to configure AMR, failover and failback of VMs in OpenShift Virtualization using Trident protect and SnapMirror.
-- name: Execute Disaster Recovery scenario tasks
+
+# Step 1: Set up prerequisites for AppMirrorRelationship (AMR) on both source and destination clusters
+# This includes creating secrets, AppVaults, Applications, and Snapshots
+- name: Execute Disaster Recovery AMR Prerequisites tasks
   hosts: localhost
   gather_facts: false
   vars_files:
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/dr_amr_setup, tags: [ 'dr_amr_setup' ] }
+  - { role: trident-protect/dr_amr_prerequisites, tags: [ 'dr_amr_prerequisites' ] }
   tags:
-  - tp_disaster_recovery_tasks
+  - tp_disaster_recovery_prerequisites
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_prerequisites
+
+# Important: If using scheduled snapshots, wait for the schedule to create at least one snapshot before proceeding to the next step.
+# You can verify snapshot creation by checking the Snapshot resources in the source namespace.
+
+# Step 2: Create AppMirrorRelationship (AMR) to establish VM replication between source and destination clusters
+# This should be executed AFTER prerequisites are complete and snapshots are available
+- name: Execute Disaster Recovery AMR Configuration tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_amr_config, tags: [ 'dr_amr_config' ] }
+  tags:
+  - tp_disaster_recovery_config
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_config
+
+# To run both steps sequentially:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_prerequisites,tp_disaster_recovery_config
