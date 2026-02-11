@@ -17,6 +17,7 @@
   tags:
     - amr_preflight
     - amr_verify_snapshots
+    - dst_appmirrorrelationship_create
 
 - name: Filter snapshots for source application {{ src_application_name }}
   ansible.builtin.set_fact:
@@ -28,6 +29,7 @@
   tags:
     - amr_preflight
     - amr_verify_snapshots
+    - dst_appmirrorrelationship_create
 
 - name: Verify at least one snapshot exists for application {{ src_application_name }} before creating AMR
   ansible.builtin.assert:
@@ -41,6 +43,7 @@
   tags:
     - amr_preflight
     - amr_verify_snapshots
+    - dst_appmirrorrelationship_create
 
 - name: Display snapshot details for verification
   ansible.builtin.debug:
@@ -53,6 +56,7 @@
   tags:
     - amr_preflight
     - amr_verify_snapshots
+    - dst_appmirrorrelationship_create
 
 # Preflight validation - Validate variables for AppMirrorRelationship (AMR) configuration on the destination cluster
 - name: Validate variables for AppMirrorRelationship (AMR) configuration on the destination cluster
