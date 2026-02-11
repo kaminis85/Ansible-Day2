@@ -79,6 +79,7 @@
   register: src_ontap_s3_secret_info
   failed_when: src_ontap_s3_secret_info.resources | length == 0
   changed_when: false
+  no_log: true
   tags:
     - src_ontap_s3_secret_verify
 
@@ -533,6 +534,7 @@
   register: dst_src_ontap_s3_secret_info
   failed_when: dst_src_ontap_s3_secret_info.resources | length == 0
   changed_when: false
+  no_log: true
   tags:
     - dst_src_ontap_s3_secret_verify
 
@@ -626,6 +628,7 @@
   register: dst_ontap_s3_secret_info
   failed_when: dst_ontap_s3_secret_info.resources | length == 0
   changed_when: false
+  no_log: true
   tags:
     - dst_ontap_s3_secret_verify
 
