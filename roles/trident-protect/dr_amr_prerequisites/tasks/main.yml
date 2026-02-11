@@ -179,11 +179,11 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     kind: VirtualMachine
+    name: "{{ item }}"
+    namespace: "{{ src_vm_namespace }}"
     merge_type: merge
     definition:
       metadata:
-        namespace: "{{ src_vm_namespace }}"
-        name: "{{ item }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_vm_list }}"
@@ -198,11 +198,11 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     kind: PersistentVolumeClaim
+    name: "{{ item }}"
+    namespace: "{{ src_vm_namespace }}"
     merge_type: strategic-merge
     definition:
       metadata:
-        namespace: "{{ src_vm_namespace }}"
-        name: "{{ item }}"
         labels:
           category: "{{ src_vm_label }}"
   loop: "{{ src_pvc_list }}"
