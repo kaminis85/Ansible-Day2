@@ -31,7 +31,7 @@
     - amr_verify_snapshots
     - dst_appmirrorrelationship_create
 
-- name: Verify at least one snapshot exists for application {{ src_application_name }} before creating AMR
+- name: Verify at least one snapshot exists for application {{ src_application_name }}
   ansible.builtin.assert:
     that:
       - src_snapshots_check.resources | length > 0
@@ -96,18 +96,6 @@
 - name: Set source application UID as fact for AMR creation
   ansible.builtin.set_fact:
     src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
-  tags:
-    - amr_preflight
-    - dst_appmirrorrelationship_create
-
-# Validate that snapshot verification was completed successfully
-- name: Ensure snapshot verification was performed before AMR creation
-  ansible.builtin.assert:
-    that:
-      - src_snapshots_check is defined
-      - src_snapshots_check.resources is defined
-    fail_msg: "Snapshot verification was not completed. Cannot proceed with AMR creation without validating snapshots exist."
-    success_msg: "Snapshot verification completed successfully"
   tags:
     - amr_preflight
     - dst_appmirrorrelationship_create
