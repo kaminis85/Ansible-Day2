@@ -44,7 +44,7 @@
 
 - name: Display snapshot details for verification
   ansible.builtin.debug:
-    msg: "Snapshot: {{ item.metadata.name }} | State: {{ item.status.state | default('Unknown') }} | Completion: {{ item.status.percentComplete | default('Unknown') }}%"
+    msg: "Snapshot: {{ item.metadata.name }} | State: {{ item.status.state | default('Unknown') }} | Created: {{ item.metadata.creationTimestamp | default('Unknown') }} | Completed: {{ item.status.completionTimestamp | default('In Progress') }} | AppVault: {{ item.status.appVaultRef | default('Unknown') }}"
   loop: "{{ src_snapshots_check.resources }}"
   when:
     - src_snapshots_check is defined
