@@ -30,7 +30,7 @@
     merge_type: merge
     definition:
       spec:
-        running: false
+        runStrategy: Halted
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
@@ -56,8 +56,8 @@
   register: vm_stop_status
   until: >
     vm_stop_status.resources | length > 0 and
-    vm_stop_status.resources[0].spec.running is defined and
-    vm_stop_status.resources[0].spec.running == false and
+    vm_stop_status.resources[0].spec.runStrategy is defined and
+    vm_stop_status.resources[0].spec.runStrategy == "Halted" and
     (vm_stop_status.resources[0].status.printableStatus is not defined or
      vm_stop_status.resources[0].status.printableStatus in ['Stopped', 'Terminating'])
   retries: 30
