@@ -343,7 +343,7 @@
         backupRetention: "0"
         enabled: true
         granularity: "Custom"
-        snapshotRetention: "{{ src_snapshot_schedule_specs.retention_count }}"
+        snapshotRetention: "{{ src_snapshot_schedule_specs.retention_count | default('') | string }}"
         recurrenceRule: |-
           DTSTART:{{ src_snapshot_schedule_specs.recurrence_rule.dtstart }}
           RRULE:{{ src_snapshot_schedule_specs.recurrence_rule.rrule }}
