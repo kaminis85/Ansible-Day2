@@ -2,8 +2,68 @@
 # Ansible tasks for executing failover of replicated VMs to the destination OpenShift cluster using Trident protect.
 # This role should be executed AFTER the dr_amr_config role has been run and the AppMirrorRelationship (AMR) is in Established state with successful replication.
 # This role assumes that there is disaster on the source cluster and the replicated VMs need to be failed over to the destination cluster.
+# 
+# IMPORTANT: During disaster simulation, this role will:
+# 1. Delete the SnapshotSchedule on the source cluster to prevent empty snapshots from being created after VM deletion
+# 2. Stop and delete source VMs to simulate disaster
+# 3. Promote the AMR on the destination cluster to enable failover
+#
+# If the snapshot schedule continues running after VM deletion, it will create snapshots with no VMs,
+# and the AMR will use the latest (empty) snapshot, resulting in no VMs being restored on the destination cluster.
 
 # Disaster simulation - This is a placeholder task to simulate disaster on the source cluster. In a real scenario, this would be an actual disaster event (e.g., source VMs deleted).
+# Step 1: Delete/suspend snapshot schedules to prevent empty snapshots from being created after VM deletion
+- name: Check if SnapshotSchedule exists for source VMs before disaster simulation
+  kubernetes.core.k8s_info:
+    kind: SnapshotSchedule
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ src_snapshot_schedule_specs.name }}"
+    namespace: "{{ src_vm_namespace }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
+    validate_certs: false
+  register: src_snapshot_schedule_check
+  changed_when: false
+  when:
+    - simulate_disaster | bool
+    - src_snapshot_schedule_specs is defined
+    - src_snapshot_schedule_specs.name is defined
+  tags:
+    - disaster_simulation
+    - delete_snapshot_schedule
+
+- name: Delete SnapshotSchedule to prevent empty snapshots after VM deletion
+  kubernetes.core.k8s:
+    kind: SnapshotSchedule
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ src_snapshot_schedule_specs.name }}"
+    namespace: "{{ src_vm_namespace }}"
+    state: absent
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
+    validate_certs: false
+  when:
+    - simulate_disaster | bool
+    - src_snapshot_schedule_check is defined
+    - src_snapshot_schedule_check.resources is defined
+    - src_snapshot_schedule_check.resources | length > 0
+  tags:
+    - disaster_simulation
+    - delete_snapshot_schedule
+
+- name: Display message about snapshot schedule deletion
+  ansible.builtin.debug:
+    msg: "✓ Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' to prevent empty snapshots after disaster"
+  when:
+    - simulate_disaster | bool
+    - src_snapshot_schedule_check is defined
+    - src_snapshot_schedule_check.resources is defined
+    - src_snapshot_schedule_check.resources | length > 0
+  tags:
+    - disaster_simulation
+    - delete_snapshot_schedule
+
+# Step 2: Identify VMs to delete
 - name: Get list of VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} before failover
   kubernetes.core.k8s_info:
     kind: VirtualMachine
@@ -20,6 +80,7 @@
   tags:
     - disaster_simulation
 
+# Step 3: Stop running VMs gracefully before deletion
 - name: Stop all running VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} to simulate disaster
   kubernetes.core.k8s:
     kind: VirtualMachine
@@ -71,6 +132,7 @@
   tags:
     - disaster_simulation
 
+# Step 4: Delete VMs to complete disaster simulation
 - name: Delete all VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} to simulate disaster
   kubernetes.core.k8s:
     kind: VirtualMachine
@@ -109,6 +171,7 @@
   tags:
     - disaster_simulation
 
+# Step 5: Summary of disaster simulation
 - name: Display message when no VMs found for disaster simulation
   ansible.builtin.debug:
     msg: "⚠️  WARNING: No VMs found in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}'. Disaster simulation skipped. Verify that VMs exist and have the correct label."
@@ -121,7 +184,10 @@
 
 - name: Display message confirming disaster simulation on source cluster
   ansible.builtin.debug:
-    msg: "✓ Disaster simulation completed on source cluster. {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}' have been stopped and deleted."
+    msg: 
+      - "✓ Disaster simulation completed on source cluster:"
+      - "  - Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' (prevents empty snapshots)"
+      - "  - Stopped and deleted {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}'"
   when:
     - simulate_disaster | bool
     - src_vms_before_failover is defined
@@ -229,7 +295,7 @@
     - dr_failover
 
 # Display the AppMirrorRelationship state after being promoted
-- name: Display AppMirrorRelationship state after reaching Promoted
+- name: Display AppMirrorRelationship state after being promoted on the destination cluster
   ansible.builtin.debug:
     msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' is now in '{{ dst_amr_state.resources[0].status.state }}' state"
   when: dst_amr_state.resources | length > 0 and dst_amr_state.resources[0].status.state is defined
