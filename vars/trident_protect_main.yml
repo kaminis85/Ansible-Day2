@@ -112,7 +112,7 @@ src_scheduled_snapshot: true                  # Set to true to perform scheduled
 src_snapshot_schedule_specs:
   name: "demo-src-vms-snapshot-schedule"        # Name of the snapshot schedule for source VMs
   snapshot_reclaim_policy: "Retain"                      # Reclaim policy for snapshots of source VMs (e.g., Retain, Delete)
-  retention_count: 2                            # Number of snapshots to retain for source VMs
+  retention_count: "2"                           # Number of snapshots to retain for source VMs
   recurrence_rule: {dtstart: "20251030T120000Z", rrule: "FREQ=MINUTELY;INTERVAL=5"}  # Recurrence rule for source VM snapshots. Example: Every 5 minutes starting from Oct 17, 2025, 00:02 UTC
 # Note: Adjust dtstart and rrule as per your requirements
 # Example dtstart format:
