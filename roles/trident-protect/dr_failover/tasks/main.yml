@@ -10,7 +10,7 @@
     api_version: kubevirt.io/v1
     namespace: "{{ src_vm_namespace }}"
     label_selectors:
-      - "{{ src_vm_label }}"
+      - "category={{ src_vm_label }}"
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
@@ -19,7 +19,6 @@
   when: simulate_disaster | bool
   tags:
     - disaster_simulation
-    - dr_failover
 
 - name: Stop all running VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} to simulate disaster
   kubernetes.core.k8s:
@@ -43,7 +42,6 @@
     - src_vms_before_failover.resources | length > 0
   tags:
     - disaster_simulation
-    - dr_failover
 
 - name: Wait for VMs to stop gracefully
   kubernetes.core.k8s_info:
@@ -72,7 +70,6 @@
     - src_vms_before_failover.resources | length > 0
   tags:
     - disaster_simulation
-    - dr_failover
 
 - name: Delete all VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} to simulate disaster
   kubernetes.core.k8s:
@@ -92,7 +89,6 @@
     - src_vms_before_failover.resources | length > 0
   tags:
     - disaster_simulation
-    - dr_failover
 
 - name: Wait for VMs to be deleted and verify deletion
   kubernetes.core.k8s_info:
@@ -100,7 +96,7 @@
     api_version: kubevirt.io/v1
     namespace: "{{ src_vm_namespace }}"
     label_selectors:
-      - "{{ src_vm_label }}"
+      - "category={{ src_vm_label }}"
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
@@ -112,15 +108,26 @@
   when: simulate_disaster | bool
   tags:
     - disaster_simulation
-    - dr_failover
+
+- name: Display message when no VMs found for disaster simulation
+  ansible.builtin.debug:
+    msg: "⚠️  WARNING: No VMs found in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}'. Disaster simulation skipped. Verify that VMs exist and have the correct label."
+  when:
+    - simulate_disaster | bool
+    - src_vms_before_failover is defined
+    - src_vms_before_failover.resources | length == 0
+  tags:
+    - disaster_simulation
 
 - name: Display message confirming disaster simulation on source cluster
   ansible.builtin.debug:
-    msg: "Disaster simulation completed on source cluster. All VMs in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}' have been stopped and deleted."
-  when: simulate_disaster | bool
+    msg: "✓ Disaster simulation completed on source cluster. {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}' have been stopped and deleted."
+  when:
+    - simulate_disaster | bool
+    - src_vms_before_failover is defined
+    - src_vms_before_failover.resources | length > 0
   tags:
     - disaster_simulation
-    - dr_failover
 
 # Fetch the source application UID from the existing AMR on the destination cluster
 # This is critical because in a real disaster scenario, the source cluster may be unavailable
