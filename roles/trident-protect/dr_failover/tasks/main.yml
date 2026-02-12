@@ -3,7 +3,30 @@
 # This role should be executed AFTER the dr_amr_config role has been run and the AppMirrorRelationship (AMR) is in Established state with successful replication.
 # This role assumes that there is disaster on the source cluster and the replicated VMs need to be failed over to the destination cluster.
 
-# Disaster simulation - This is a placeholder task to simulate disaster on the source cluster. # In a real scenario, this would be an actual disaster event (e.g., source cluster failure).
+# Fetch the source application UID from the source OpenShift cluster
+- name: Get source application UID from the source OpenShift cluster
+  kubernetes.core.k8s_info:
+    kind: Application
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ src_application_name }}"
+    namespace: "{{ src_vm_namespace }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
+    validate_certs: false
+  register: src_application_info
+  changed_when: false
+  failed_when: src_application_info.resources | length == 0
+  tags:
+    - dr_failover
+
+# Extract the source application UID
+- name: Set source application UID as fact for AMR creation
+  ansible.builtin.set_fact:
+    src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
+  tags:
+    - dr_failover
+    
+# Disaster simulation - This is a placeholder task to simulate disaster on the source cluster. In a real scenario, this would be an actual disaster event (e.g., source VMs deleted).
 - name: Get list of VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} before failover
   kubernetes.core.k8s_info:
     kind: VirtualMachine
@@ -26,7 +49,11 @@
     api_version: kubevirt.io/v1
     namespace: "{{ src_vm_namespace }}"
     name: "{{ item.metadata.name }}"
-    state: stopped
+    state: patched
+    merge_type: merge
+    definition:
+      spec:
+        running: false
     host: "{{ src_oc_api_url }}"
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
@@ -40,9 +67,29 @@
     - dr_failover
 
 - name: Wait for VMs to stop gracefully
-  ansible.builtin.pause:
-    seconds: 30
-    prompt: "Waiting for VMs to stop gracefully. Press Enter to continue after ensuring VMs are stopped."
+  kubernetes.core.k8s_info:
+    kind: VirtualMachine
+    api_version: kubevirt.io/v1
+    namespace: "{{ src_vm_namespace }}"
+    name: "{{ item.metadata.name }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
+    validate_certs: false
+  loop: "{{ src_vms_before_failover.resources }}"
+  register: vm_stop_status
+  until: >
+    vm_stop_status.resources | length > 0 and
+    vm_stop_status.resources[0].spec.running is defined and
+    vm_stop_status.resources[0].spec.running == false and
+    (vm_stop_status.resources[0].status.printableStatus is not defined or
+     vm_stop_status.resources[0].status.printableStatus in ['Stopped', 'Terminating'])
+  retries: 30
+  delay: 10
+  changed_when: false
+  when:
+    - src_vms_before_failover is defined
+    - src_vms_before_failover.resources is defined
+    - src_vms_before_failover.resources | length > 0
   tags:
     - disaster_simulation
     - dr_failover
@@ -66,15 +113,7 @@
     - disaster_simulation
     - dr_failover
 
-- name: Wait for VMs to be deleted
-  ansible.builtin.pause:
-    seconds: 30
-    prompt: "Waiting for VMs to be deleted. Press Enter to continue after ensuring VMs are deleted."
-  tags:
-    - disaster_simulation
-    - dr_failover
-
-- name: Verify that VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} are deleted after disaster simulation
+- name: Wait for VMs to be deleted and verify deletion
   kubernetes.core.k8s_info:
     kind: VirtualMachine
     api_version: kubevirt.io/v1
@@ -85,8 +124,10 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
   register: src_vms_after_disaster
+  until: src_vms_after_disaster.resources | length == 0
+  retries: 30
+  delay: 10
   changed_when: false
-  failed_when: src_vms_after_disaster.resources | length > 0
   tags:
     - disaster_simulation
     - dr_failover
@@ -98,29 +139,6 @@
     - disaster_simulation
     - dr_failover
 
-# Fetch the source application UID from the source OpenShift cluster
-- name: Get source application UID from the source OpenShift cluster
-  kubernetes.core.k8s_info:
-    kind: Application
-    api_version: protect.trident.netapp.io/v1
-    name: "{{ src_application_name }}"
-    namespace: "{{ src_vm_namespace }}"
-    host: "{{ src_oc_api_url }}"
-    api_key: "{{ src_oc_api_token }}"
-    validate_certs: false
-  register: src_application_info
-  changed_when: false
-  failed_when: src_application_info.resources | length == 0
-  tags:
-    - dr_failover
-
-# Extract the source application UID
-- name: Set source application UID as fact for AMR creation
-  ansible.builtin.set_fact:
-    src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
-  tags:
-    - dr_failover
-
 # Failover execution - This task will fail over the replicated VMs to the destination OpenShift cluster.
 # This procedure stops the replication relationship (AMR) and brings the VMs online the destination cluster. The VMs will be in the same state as they were on the source cluster at the time of the last successful replication (last snapshot).
 - name: Fail over replicated VMs to the destination OpenShift cluster by promoting the AppMirrorRelationship (AMR)
@@ -129,7 +147,7 @@
     host: "{{ dst_oc_api_url }}"
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
-    wait: false
+    wait: true
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: AppMirrorRelationship
@@ -175,7 +193,7 @@
   tags:
     - dr_failover
 
-# Wait for the AppMirrorRelationship to reach the Established state
+# Wait for the AppMirrorRelationship to reach the Promoted state
 - name: Wait for AppMirrorRelationship {{ appmirrorrelationship_specs.name }} to reach Promoted state
   kubernetes.core.k8s_info:
     kind: AppMirrorRelationship
@@ -196,7 +214,7 @@
   tags:
     - dr_failover
 
-# Display the AppMirrorRelationship state after establishment
+# Display the AppMirrorRelationship state after being promoted
 - name: Display AppMirrorRelationship state after reaching Promoted
   ansible.builtin.debug:
     msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' is now in '{{ dst_amr_state.resources[0].status.state }}' state"
