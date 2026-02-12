@@ -3,29 +3,6 @@
 # This role should be executed AFTER the dr_amr_config role has been run and the AppMirrorRelationship (AMR) is in Established state with successful replication.
 # This role assumes that there is disaster on the source cluster and the replicated VMs need to be failed over to the destination cluster.
 
-# Fetch the source application UID from the source OpenShift cluster
-- name: Get source application UID from the source OpenShift cluster
-  kubernetes.core.k8s_info:
-    kind: Application
-    api_version: protect.trident.netapp.io/v1
-    name: "{{ src_application_name }}"
-    namespace: "{{ src_vm_namespace }}"
-    host: "{{ src_oc_api_url }}"
-    api_key: "{{ src_oc_api_token }}"
-    validate_certs: false
-  register: src_application_info
-  changed_when: false
-  failed_when: src_application_info.resources | length == 0
-  tags:
-    - dr_failover
-
-# Extract the source application UID
-- name: Set source application UID as fact for AMR creation
-  ansible.builtin.set_fact:
-    src_application_uid: "{{ src_application_info.resources[0].metadata.uid }}"
-  tags:
-    - dr_failover
-    
 # Disaster simulation - This is a placeholder task to simulate disaster on the source cluster. In a real scenario, this would be an actual disaster event (e.g., source VMs deleted).
 - name: Get list of VMs in source namespace {{ src_vm_namespace }} with label {{ src_vm_label }} before failover
   kubernetes.core.k8s_info:
@@ -39,6 +16,7 @@
     validate_certs: false
   register: src_vms_before_failover
   changed_when: false
+  when: simulate_disaster | bool
   tags:
     - disaster_simulation
     - dr_failover
@@ -59,6 +37,7 @@
     validate_certs: false
   loop: "{{ src_vms_before_failover.resources }}"
   when:
+    - simulate_disaster | bool
     - src_vms_before_failover is defined
     - src_vms_before_failover.resources is defined
     - src_vms_before_failover.resources | length > 0
@@ -87,6 +66,7 @@
   delay: 10
   changed_when: false
   when:
+    - simulate_disaster | bool
     - src_vms_before_failover is defined
     - src_vms_before_failover.resources is defined
     - src_vms_before_failover.resources | length > 0
@@ -106,6 +86,7 @@
     validate_certs: false
   loop: "{{ src_vms_before_failover.resources }}"
   when:
+    - simulate_disaster | bool
     - src_vms_before_failover is defined
     - src_vms_before_failover.resources is defined
     - src_vms_before_failover.resources | length > 0
@@ -128,6 +109,7 @@
   retries: 30
   delay: 10
   changed_when: false
+  when: simulate_disaster | bool
   tags:
     - disaster_simulation
     - dr_failover
@@ -135,12 +117,37 @@
 - name: Display message confirming disaster simulation on source cluster
   ansible.builtin.debug:
     msg: "Disaster simulation completed on source cluster. All VMs in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}' have been stopped and deleted."
+  when: simulate_disaster | bool
   tags:
     - disaster_simulation
     - dr_failover
 
+# Fetch the source application UID from the existing AMR on the destination cluster
+# This is critical because in a real disaster scenario, the source cluster may be unavailable
+- name: Get existing AppMirrorRelationship to retrieve source application UID
+  kubernetes.core.k8s_info:
+    kind: AppMirrorRelationship
+    api_version: protect.trident.netapp.io/v1
+    name: "{{ appmirrorrelationship_specs.name }}"
+    namespace: "{{ dst_vm_namespace }}"
+    host: "{{ dst_oc_api_url }}"
+    api_key: "{{ dst_oc_api_token }}"
+    validate_certs: false
+  register: existing_amr_info
+  changed_when: false
+  failed_when: existing_amr_info.resources | length == 0
+  tags:
+    - dr_failover
+
+# Extract the source application UID from the existing AMR
+- name: Set source application UID from existing AMR
+  ansible.builtin.set_fact:
+    src_application_uid: "{{ existing_amr_info.resources[0].spec.sourceApplicationUID }}"
+  tags:
+    - dr_failover
+
 # Failover execution - This task will fail over the replicated VMs to the destination OpenShift cluster.
-# This procedure stops the replication relationship (AMR) and brings the VMs online the destination cluster. The VMs will be in the same state as they were on the source cluster at the time of the last successful replication (last snapshot).
+# This procedure stops the replication relationship (AMR) and brings the VMs online on the destination cluster. The VMs will be in the same state as they were on the source cluster at the time of the last successful replication (last snapshot).
 - name: Fail over replicated VMs to the destination OpenShift cluster by promoting the AppMirrorRelationship (AMR)
   kubernetes.core.k8s:
     state: present

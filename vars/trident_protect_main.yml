@@ -149,3 +149,7 @@ appmirrorrelationship_specs:
   storage_class: "ontap-nfs"        # Storage class to be used for replicated VMs on destination cluster
   recurrence_rule: {dtstart: "20251030T120000Z", rrule: "FREQ=MINUTELY;INTERVAL=10"}  # Recurrence rule for replication. Example: Every 10 minutes starting from Oct 30, 2025, 12:00 UTC
 # Note: Adjust dtstart and rrule as per your requirements
+
+# Disaster Simulation control variable
+# Note: Set to true to simulate disaster on source cluster by stopping and deleting all VMs (under src_vm_list) on source cluster. This is done to validate that the replicated VMs on destination cluster can be successfully failed over and run in case of disaster on source cluster
+simulate_disaster: true       # Set to true to simulate disaster on source cluster by stopping and deleting all source VMs (VMs under src_vm_list and with label src_vm_label) on source cluster
