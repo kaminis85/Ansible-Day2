@@ -13,9 +13,9 @@
 
 # Disaster simulation - This is a placeholder task to simulate disaster on the source cluster. In a real scenario, this would be an actual disaster event (e.g., source VMs deleted).
 # Step 1: Delete/suspend snapshot schedules to prevent empty snapshots from being created after VM deletion
-- name: Check if SnapshotSchedule exists for source VMs before disaster simulation
+- name: Check if Schedule exists for source VMs before disaster simulation
   kubernetes.core.k8s_info:
-    kind: SnapshotSchedule
+    kind: Schedule
     api_version: protect.trident.netapp.io/v1
     name: "{{ src_snapshot_schedule_specs.name }}"
     namespace: "{{ src_vm_namespace }}"
@@ -32,9 +32,9 @@
     - disaster_simulation
     - delete_snapshot_schedule
 
-- name: Display message when SnapshotSchedule is not present for source application
+- name: Display message when Schedule is not present for source application
   ansible.builtin.debug:
-    msg: "There is no SnapshotSchedule for application '{{ src_application_name }}' in namespace '{{ src_vm_namespace }}'. Skipping snapshot schedule deletion."
+    msg: "There is no Schedule for application '{{ src_application_name }}' in namespace '{{ src_vm_namespace }}'. Skipping snapshot schedule deletion."
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
@@ -43,9 +43,9 @@
     - disaster_simulation
     - delete_snapshot_schedule
 
-- name: Delete SnapshotSchedule to prevent empty snapshots after VM deletion
+- name: Delete Schedule to prevent empty snapshots after VM deletion
   kubernetes.core.k8s:
-    kind: SnapshotSchedule
+    kind: Schedule
     api_version: protect.trident.netapp.io/v1
     name: "{{ src_snapshot_schedule_specs.name }}"
     namespace: "{{ src_vm_namespace }}"
@@ -65,7 +65,7 @@
 
 - name: Display message about snapshot schedule deletion
   ansible.builtin.debug:
-    msg: "Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' to prevent empty snapshots after disaster"
+    msg: "Deleted Schedule '{{ src_snapshot_schedule_specs.name }}' to prevent empty snapshots after disaster"
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
@@ -195,16 +195,32 @@
   tags:
     - disaster_simulation
 
-- name: Display message confirming disaster simulation on source cluster
+- name: Display message confirming disaster simulation on source cluster (with snapshot schedule deletion)
   ansible.builtin.debug:
     msg: 
       - "Disaster simulation completed on source cluster:"
-      - "  - Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' (prevents empty snapshots)"
+      - "  - Deleted Schedule '{{ src_snapshot_schedule_specs.name }}'"
       - "  - Stopped and deleted {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}'"
   when:
     - simulate_disaster | bool
     - src_vms_before_failover is defined
     - src_vms_before_failover.resources | length > 0
+    - src_snapshot_schedule_check is defined
+    - src_snapshot_schedule_check.api_found | default(false)
+    - src_snapshot_schedule_check.resources | length > 0
+  tags:
+    - disaster_simulation
+
+- name: Display message confirming disaster simulation on source cluster (without snapshot schedule)
+  ansible.builtin.debug:
+    msg: 
+      - "Disaster simulation completed on source cluster:"
+      - "  - Stopped and deleted {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}'"
+  when:
+    - simulate_disaster | bool
+    - src_vms_before_failover is defined
+    - src_vms_before_failover.resources | length > 0
+    - (src_snapshot_schedule_check is not defined or not src_snapshot_schedule_check.api_found | default(false) or src_snapshot_schedule_check.resources | length == 0)
   tags:
     - disaster_simulation
 
@@ -312,5 +328,31 @@
   ansible.builtin.debug:
     msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' is now in '{{ dst_amr_state.resources[0].status.state }}' state"
   when: dst_amr_state.resources | length > 0 and dst_amr_state.resources[0].status.state is defined
+  tags:
+    - dr_failover_promote
+
+# Verify that VMs are actually restored on the destination cluster after AMR promotion
+- name: Wait for VMs to be restored on destination cluster after failover
+  kubernetes.core.k8s_info:
+    kind: VirtualMachine
+    api_version: kubevirt.io/v1
+    namespace: "{{ dst_vm_namespace }}"
+    label_selectors:
+      - "category={{ src_vm_label }}"
+    host: "{{ dst_oc_api_url }}"
+    api_key: "{{ dst_oc_api_token }}"
+    validate_certs: false
+  register: dst_vms_after_failover
+  until: dst_vms_after_failover.resources | length > 0
+  retries: 60
+  delay: 10
+  changed_when: false
+  tags:
+    - dr_failover_promote
+
+- name: Display VMs restored on destination cluster
+  ansible.builtin.debug:
+    msg: "Successfully restored {{ dst_vms_after_failover.resources | length }} VM(s) on destination cluster in namespace '{{ dst_vm_namespace }}'"
+  when: dst_vms_after_failover.resources | length > 0
   tags:
     - dr_failover_promote
