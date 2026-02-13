@@ -34,7 +34,7 @@
 
 - name: Display message when SnapshotSchedule is not present for source application
   ansible.builtin.debug:
-    msg: "ℹ️  There is no SnapshotSchedule for application '{{ src_application_name }}' in namespace '{{ src_vm_namespace }}'. Skipping snapshot schedule deletion."
+    msg: "There is no SnapshotSchedule for application '{{ src_application_name }}' in namespace '{{ src_vm_namespace }}'. Skipping snapshot schedule deletion."
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
