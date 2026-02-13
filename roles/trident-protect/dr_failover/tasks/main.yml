@@ -32,6 +32,17 @@
     - disaster_simulation
     - delete_snapshot_schedule
 
+- name: Display message when SnapshotSchedule is not present for source application
+  ansible.builtin.debug:
+    msg: "ℹ️  SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' not found for application '{{ src_application_name }}' in namespace '{{ src_vm_namespace }}'. Skipping snapshot schedule deletion."
+  when:
+    - simulate_disaster | bool
+    - src_snapshot_schedule_check is defined
+    - not src_snapshot_schedule_check.api_found | default(true)
+  tags:
+    - disaster_simulation
+    - delete_snapshot_schedule
+
 - name: Delete SnapshotSchedule to prevent empty snapshots after VM deletion
   kubernetes.core.k8s:
     kind: SnapshotSchedule
@@ -45,6 +56,7 @@
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
+    - src_snapshot_schedule_check.api_found | default(false)
     - src_snapshot_schedule_check.resources is defined
     - src_snapshot_schedule_check.resources | length > 0
   tags:
@@ -57,6 +69,7 @@
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
+    - src_snapshot_schedule_check.api_found | default(false)
     - src_snapshot_schedule_check.resources is defined
     - src_snapshot_schedule_check.resources | length > 0
   tags:
