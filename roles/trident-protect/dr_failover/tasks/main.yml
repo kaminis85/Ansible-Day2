@@ -223,14 +223,14 @@
   changed_when: false
   failed_when: existing_amr_info.resources | length == 0
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # Extract the source application UID from the existing AMR
 - name: Set source application UID from existing AMR
   ansible.builtin.set_fact:
     src_application_uid: "{{ existing_amr_info.resources[0].spec.sourceApplicationUID }}"
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # Failover execution - This task will fail over the replicated VMs to the destination OpenShift cluster.
 # This procedure stops the replication relationship (AMR) and brings the VMs online on the destination cluster. The VMs will be in the same state as they were on the source cluster at the time of the last successful replication (last snapshot).
@@ -261,7 +261,7 @@
           DTSTART:{{ appmirrorrelationship_specs.recurrence_rule.dtstart }}
           RRULE:{{ appmirrorrelationship_specs.recurrence_rule.rrule }}
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # View the AppMirrorRelationship details on the destination OpenShift cluster
 - name: Get AppMirrorRelationship details to verify it has been promoted
@@ -277,14 +277,14 @@
   changed_when: false
   failed_when: dst_appmirrorrelationship_info.resources | length == 0
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # Display the AppMirrorRelationship details promoted on the destination OpenShift cluster
 - name: Display AppMirrorRelationship information promoted on the destination OpenShift cluster
   ansible.builtin.debug:
     var: dst_appmirrorrelationship_info.resources[0]
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # Wait for the AppMirrorRelationship to reach the Promoted state
 - name: Wait for AppMirrorRelationship {{ appmirrorrelationship_specs.name }} to reach Promoted state
@@ -305,7 +305,7 @@
   delay: 30
   changed_when: false
   tags:
-    - dr_failover
+    - dr_failover_promote
 
 # Display the AppMirrorRelationship state after being promoted
 - name: Display AppMirrorRelationship state after being promoted on the destination cluster
@@ -313,4 +313,4 @@
     msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' is now in '{{ dst_amr_state.resources[0].status.state }}' state"
   when: dst_amr_state.resources | length > 0 and dst_amr_state.resources[0].status.state is defined
   tags:
-    - dr_failover
+    - dr_failover_promote
