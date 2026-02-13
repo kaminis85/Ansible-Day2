@@ -65,7 +65,7 @@
 
 - name: Display message about snapshot schedule deletion
   ansible.builtin.debug:
-    msg: "✓ Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' to prevent empty snapshots after disaster"
+    msg: "Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' to prevent empty snapshots after disaster"
   when:
     - simulate_disaster | bool
     - src_snapshot_schedule_check is defined
@@ -187,7 +187,7 @@
 # Step 5: Summary of disaster simulation
 - name: Display message when no VMs found for disaster simulation
   ansible.builtin.debug:
-    msg: "⚠️  WARNING: No VMs found in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}'. Disaster simulation skipped. Verify that VMs exist and have the correct label."
+    msg: "WARNING: No VMs found in namespace '{{ src_vm_namespace }}' with label '{{ src_vm_label }}'. Disaster simulation skipped. Verify that VMs exist and have the correct label."
   when:
     - simulate_disaster | bool
     - src_vms_before_failover is defined
@@ -198,7 +198,7 @@
 - name: Display message confirming disaster simulation on source cluster
   ansible.builtin.debug:
     msg: 
-      - "✓ Disaster simulation completed on source cluster:"
+      - "Disaster simulation completed on source cluster:"
       - "  - Deleted SnapshotSchedule '{{ src_snapshot_schedule_specs.name }}' (prevents empty snapshots)"
       - "  - Stopped and deleted {{ src_vms_before_failover.resources | length }} VM(s) in namespace '{{ src_vm_namespace }}'"
   when:
