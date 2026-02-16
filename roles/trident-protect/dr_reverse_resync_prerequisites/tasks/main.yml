@@ -1,1 +1,3 @@
+---
+# Ansible tasks for setting up prerequisites to reverse resync a failed over replication relationship using Trident Protect.
 
