@@ -22,10 +22,7 @@
 - name: Filter snapshots for source application {{ src_application_name }}
   ansible.builtin.set_fact:
     src_snapshots_check:
-      resources: "{{ src_snapshots_all.resources | selectattr('spec.applicationRef', 'defined') | selectattr('spec.applicationRef', 'equalto', src_application_name) | list }}"
-  when:
-    - src_snapshots_all is defined
-    - src_snapshots_all.resources is defined
+      resources: "{{ src_snapshots_all.resources | selectattr('spec.applicationRef', 'defined') | selectattr('spec.applicationRef', 'equalto', src_application_name) | selectattr('status.state', 'defined') | selectattr('status.state', 'equalto', 'Completed') | list }}"
   tags:
     - amr_preflight
     - amr_verify_snapshots
@@ -35,11 +32,8 @@
   ansible.builtin.assert:
     that:
       - src_snapshots_check.resources | length > 0
-    fail_msg: "No snapshots found for application '{{ src_application_name }}' in namespace {{ src_vm_namespace }}. Ensure snapshots are created before proceeding with AMR configuration."
-    success_msg: "Found {{ src_snapshots_check.resources | length }} snapshot(s) for application '{{ src_application_name }}' in namespace {{ src_vm_namespace }}. Proceeding with AMR configuration."
-  when:
-    - src_snapshots_check is defined
-    - src_snapshots_check.resources is defined
+    fail_msg: "No Completed snapshots found for application '{{ src_application_name }}' in namespace {{ src_vm_namespace }}. Ensure snapshots are in Completed state before proceeding with AMR configuration."
+    success_msg: "Found {{ src_snapshots_check.resources | length }} Completed snapshot(s) for application '{{ src_application_name }}' in namespace {{ src_vm_namespace }}. Proceeding with AMR configuration."
   tags:
     - amr_preflight
     - amr_verify_snapshots
