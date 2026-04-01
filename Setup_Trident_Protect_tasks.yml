@@ -112,5 +112,53 @@
   tags:
   - tp_disaster_recovery_failover
 
-# Note: To execute this playbook, run the following command from the directory where this file is located: 
+# Note: To execute this playbook, run the following command from the directory where this file is located:
 # ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failover
+
+# Step 4: Prerequisites to reverse resync the failed over replication relationship. 
+# This should be executed after failover is complete and the failed over VMs are running successfully on the destination cluster.
+- name: Execute Disaster Recovery Reverse Resync the failed over replication relationship Prerequisites tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_reverse_resync_prerequisites, tags: [ 'dr_reverse_resync_prerequisites' ] }
+  tags:
+  - tp_disaster_recovery_reverse_resync_prerequisites
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_reverse_resync_prerequisites
+
+# Step 5: Reverse resync the failed over replication relationship to re-establish replication from the new primary (destination cluster) back to the original primary (source cluster).
+# This should be executed after the reverse resync prerequisites are complete and the failed over VMs are running successfully on the destination cluster.
+- name: Execute Disaster Recovery Reverse Resync the failed over replication relationship tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_reverse_resync_config, tags: [ 'dr_reverse_resync_config' ] }
+  tags:
+  - tp_disaster_recovery_reverse_resync_config
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_reverse_resync_config
+
+# Step 6: Failback to restore VMs to the original source cluster after the reverse resync is in Established state.
+# This should be executed after the reverse resync is complete and replication from destination to source is confirmed healthy.
+- name: Execute Disaster Recovery Failback tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_failback, tags: [ 'dr_failback' ] }
+  tags:
+  - tp_disaster_recovery_failback
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback
