@@ -153,3 +153,6 @@ appmirrorrelationship_specs:
 # Disaster Simulation control variable
 # Note: Set to true to simulate disaster on source cluster by stopping and deleting all VMs (under src_vm_list) on source cluster. This is done to validate that the replicated VMs on destination cluster can be successfully failed over and run in case of disaster on source cluster
 simulate_disaster: true       # Set to true to simulate disaster on source cluster by stopping and deleting all source VMs (VMs under src_vm_list and with label src_vm_label) on source cluster
+
+# Shutdown snapshot name for failback
+shutdown_snapshot_name: "demo-shutdown-snapshot"   # Name of the shutdown snapshot to be created on the source (original destination) cluster before failback

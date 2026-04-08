@@ -147,8 +147,24 @@
 # Note: To execute this playbook, run the following command from the directory where this file is located:
 # ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_reverse_resync_config
 
-# Step 6: Failback to restore VMs to the original source cluster after the reverse resync is in Established state.
+# Step 6: Prepare to failback VMs to the original primary (source cluster) by executing any necessary tasks such as cleanup on the destination cluster and ensuring the source cluster is ready to take over as primary again.
 # This should be executed after the reverse resync is complete and replication from destination to source is confirmed healthy.
+- name: Execute Disaster Recovery Failback preparation tasks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_failback_prepare, tags: [ 'dr_failback_prepare' ] }
+  tags:
+  - tp_disaster_recovery_failback_prepare
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_prepare
+
+# Step 7: Failback VMs to the original primary (source cluster) by executing the failback tasks to switch primary back to the source cluster.
+# This should be executed after the failback preparation tasks are complete and the source cluster is ready to take over as primary again.
 - name: Execute Disaster Recovery Failback tasks
   hosts: localhost
   gather_facts: false
@@ -156,9 +172,9 @@
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/dr_failback, tags: [ 'dr_failback' ] }
+  - { role: trident-protect/dr_failback_config, tags: [ 'dr_failback_config' ] }
   tags:
-  - tp_disaster_recovery_failback
+  - tp_disaster_recovery_failback_config
 
 # Note: To execute this playbook, run the following command from the directory where this file is located:
-# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_config
