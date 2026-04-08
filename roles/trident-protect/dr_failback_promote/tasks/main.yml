@@ -1,5 +1,5 @@
 ---
-# Ansible tasks for preparing to failback VMs to the original primary (source cluster) in a Disaster Recovery scenario using NetApp Trident Protect and SnapMirror.
+# Ansible tasks to promote the AppMirrorRelationship on the new destination cluster (original source cluster) to initiate the failback of VMs in a Disaster Recovery scenario using NetApp Trident Protect and SnapMirror.
 # This role should be executed AFTER the dr_reverse_resync_config role has been executed and the reverse resync is in Established state with healthy replication from destination to source cluster.
 # Make sure the original source cluster is ready to take over as primary again and execute any necessary cleanup tasks on the destination cluster before running this role.
 

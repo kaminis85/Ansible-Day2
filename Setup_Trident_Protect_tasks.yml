@@ -147,34 +147,50 @@
 # Note: To execute this playbook, run the following command from the directory where this file is located:
 # ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_reverse_resync_config
 
-# Step 6: Prepare to failback VMs to the original primary (source cluster) by executing any necessary tasks such as cleanup on the destination cluster and ensuring the source cluster is ready to take over as primary again.
+# Step 6: Promote the AppMirrorRelationship on the new destination cluster (original source cluster) to initiate the failback of VMs.
 # This should be executed after the reverse resync is complete and replication from destination to source is confirmed healthy.
-- name: Execute Disaster Recovery Failback preparation tasks
+- name: Execute Disaster Recovery tasks to promote the AMR to initiate failback of VMs to the original primary (source cluster)
   hosts: localhost
   gather_facts: false
   vars_files:
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/dr_failback_prepare, tags: [ 'dr_failback_prepare' ] }
+  - { role: trident-protect/dr_failback_promote, tags: [ 'dr_failback_promote' ] }
   tags:
-  - tp_disaster_recovery_failback_prepare
+  - tp_disaster_recovery_failback_promote
 
 # Note: To execute this playbook, run the following command from the directory where this file is located:
-# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_prepare
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_promote
 
-# Step 7: Failback VMs to the original primary (source cluster) by executing the failback tasks to switch primary back to the source cluster.
-# This should be executed after the failback preparation tasks are complete and the source cluster is ready to take over as primary again.
-- name: Execute Disaster Recovery Failback tasks
+# Step 7: Prepare the system so that forward replication from the original primary (source cluster) to the destination cluster can be re-established.
+# This should be executed after the AMR promotion is complete and the AppMirrorRelationship on the new destination cluster (original source cluster) is in Promoted state.
+- name: Execute Disaster Recovery tasks to prepare for failback of VMs to the original primary (source cluster)
   hosts: localhost
   gather_facts: false
   vars_files:
     - vars/trident_protect_main.yml
   connection: local
   roles:
-  - { role: trident-protect/dr_failback_config, tags: [ 'dr_failback_config' ] }
+  - { role: trident-protect/dr_failback_prepare_forward_amr, tags: [ 'dr_failback_prepare_forward_amr' ] }
   tags:
-  - tp_disaster_recovery_failback_config
+  - tp_disaster_recovery_failback_prepare_forward_amr
 
 # Note: To execute this playbook, run the following command from the directory where this file is located:
-# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_config
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_prepare_forward_amr
+
+# Step 8: Re-establish forward replication from the original primary (source cluster) to the destination cluster.
+# This should be executed after the failback preparation tasks are complete and the AppMirrorRelationship on the new destination cluster (original source cluster) is in Promoted state.
+- name: Execute Disaster Recovery tasks to failback VMs to the original primary (source cluster) by re-establishing forward replication
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/trident_protect_main.yml
+  connection: local
+  roles:
+  - { role: trident-protect/dr_failback_establish_forward_amr, tags: [ 'dr_failback_establish_forward_amr' ] }
+  tags:
+  - tp_disaster_recovery_failback_establish_forward_amr
+
+# Note: To execute this playbook, run the following command from the directory where this file is located:
+# ansible-playbook Setup_Trident_Protect_tasks.yml -e @vars/trident_protect_main.yml -t tp_disaster_recovery_failback_establish_forward_amr
