@@ -165,7 +165,7 @@
 
 # Step 7: Prepare the system so that forward replication from the original primary (source cluster) to the destination cluster can be re-established.
 # This should be executed after the AMR promotion is complete and the AppMirrorRelationship on the new destination cluster (original source cluster) is in Promoted state.
-- name: Execute Disaster Recovery tasks to prepare for failback of VMs to the original primary (source cluster)
+- name: Execute Disaster Recovery tasks to prepare the system for re-establishing forward replication from the original primary (source cluster) to the destination cluster
   hosts: localhost
   gather_facts: false
   vars_files:
@@ -181,7 +181,7 @@
 
 # Step 8: Re-establish forward replication from the original primary (source cluster) to the destination cluster.
 # This should be executed after the failback preparation tasks are complete and the AppMirrorRelationship on the new destination cluster (original source cluster) is in Promoted state.
-- name: Execute Disaster Recovery tasks to failback VMs to the original primary (source cluster) by re-establishing forward replication
+- name: Execute Disaster Recovery tasks to re-establish replication from the original primary (source cluster) to the destination cluster
   hosts: localhost
   gather_facts: false
   vars_files:

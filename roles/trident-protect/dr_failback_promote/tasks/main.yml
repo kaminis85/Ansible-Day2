@@ -15,8 +15,7 @@
     api_key: "{{ dst_oc_api_token }}"
     validate_certs: false
   tags:
-    - dr_failback_promote
-    - new_dst_amr_promote
+    - disable_schedule
 
 # Verify that the protection schedules have been successfully disabled for the VM on the source (original destination) cluster before proceeding with any further failback preparation tasks.
 - name: Verify protection schedules are disabled for the VM on the source (original destination) cluster
@@ -31,8 +30,7 @@
   register: dst_schedule_info
   failed_when: dst_schedule_info.resources | length > 0
   tags:
-    - dr_failback_promote
-    - new_dst_amr_promote
+    - disable_schedule
 
 # Create a shutdown snapshot on the source (original destination) cluster to capture the final state of the VM before failback. This snapshot will be used as the source for the failback process to restore the VM back to the original source cluster.
 - name: Create a shutdown snapshot on the source (original destination) cluster for failback
@@ -51,7 +49,7 @@
         appVaultRef: "{{ dst_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
   tags:
-    - dr_failback_promote
+    - create_shutdown_snapshot
     - new_dst_amr_promote
 
 # Verify that the shutdown snapshot has been successfully created on the source (original destination) cluster before proceeding with the failback process.
@@ -75,7 +73,7 @@
     shutdown_snapshot_verify_info.resources | length == 0 or
     shutdown_snapshot_verify_info.resources[0].status.appArchivePath | default('') == ''
   tags:
-    - dr_failback_promote
+    - create_shutdown_snapshot
     - new_dst_amr_promote
 
 # Capture the basename (last part after the final slash) from appArchivePath of the shutdown snapshot
@@ -83,7 +81,7 @@
   set_fact:
     shutdown_snapshot_basename: "{{ shutdown_snapshot_verify_info.resources[0].status.appArchivePath.split('/')[-1] }}"
   tags:
-    - dr_failback_promote
+    - create_shutdown_snapshot
     - new_dst_amr_promote
 
 # Fetch the source application UID from the source OpenShift cluster (original destination cluster)
@@ -100,7 +98,7 @@
   changed_when: false
   failed_when: new_src_application_info.resources | length == 0
   tags:
-    - dr_failback_promote
+    - get_app_uid
     - new_dst_amr_promote
 
 # Extract the source application UID
@@ -108,7 +106,7 @@
   ansible.builtin.set_fact:
     src_application_uid: "{{ new_src_application_info.resources[0].metadata.uid }}"
   tags:
-    - dr_failback_promote
+    - get_app_uid
     - new_dst_amr_promote
 
 # Perform a fail over to the destination (original source) cluster using the ShutdownSnapshot as the promoted snapshot.

@@ -1,6 +1,6 @@
 ---
 # Ansible tasks to prepare the system so that forward AMR can be re-established from the original primary (source) cluster to the destination cluster.
-# This role should be executed after the AMR has been promoted on the new destination (original source) cluster using the shutdown snapshot as the promoted snapshot for the failback process.
+# This role should be executed AFTER the dr_failback_promote role has been executed to ensure the AMR has been promoted on the new destination (original source) cluster using the shutdown snapshot as the promoted snapshot.
 
 # Remove any protection schedules remaining on the new destination cluster (original source cluster) that were used for replication to the original destination cluster to ensure there are no conflicts or unintended replication activities during the failback process.
 - name: Remove any remaining protection schedules on the new destination cluster (original source cluster)
@@ -14,7 +14,7 @@
     api_key: "{{ src_oc_api_token }}"
     validate_certs: false
   tags:
-    - dr_failback_prepare_forward_amr
+    - disable_protection_schedules
 
 # Verify that all protection schedules have been successfully removed from the new destination cluster (original source cluster) before proceeding with any further failback preparation tasks.
 - name: Verify all protection schedules are removed from the new destination cluster (original source cluster)
@@ -29,10 +29,10 @@
   register: src_schedule_info
   failed_when: src_schedule_info.resources | length > 0
   tags:
-    - dr_failback_prepare_forward_amr
+    - disable_protection_schedules
 
 # On the new destination cluster (original source cluster), delete the AppMirrorRelationship CR. This causes the destination to become the source.
-- name: Delete the AppMirrorRelationship CR on the new destination cluster (original source cluster) to prepare for failback
+- name: Delete the AppMirrorRelationship CR on the new destination cluster (original source cluster)
   kubernetes.core.k8s:
     state: absent
     host: "{{ src_oc_api_url }}"
@@ -45,7 +45,7 @@
         name: "{{ appmirrorrelationship_specs.name }}"
         namespace: "{{ src_vm_namespace }}"
   tags:
-    - dr_failback_prepare_forward_amr
+    - delete_amr_new_dst
 
 # Wait for the AMR to be fully deleted before proceeding to reverse resync config.
 - name: Wait for AppMirrorRelationship to be fully deleted on the new destination cluster (original source cluster) before proceeding with reverse resync config
@@ -63,22 +63,22 @@
   delay: 10
   changed_when: false
   tags:
-    - dr_failback_prepare_forward_amr
+    - delete_amr_new_dst
 
 - name: Display message confirming AMR deletion on new destination cluster (original source cluster)
   ansible.builtin.debug:
     msg: "AppMirrorRelationship '{{ appmirrorrelationship_specs.name }}' has been fully deleted from namespace '{{ src_vm_namespace }}' on the new destination cluster (original source cluster). Ready for reverse resync."
   tags:
-    - dr_failback_prepare_forward_amr
+    - delete_amr_prepare_failback
 
-# Preflight validation - Validate variables for snapshot schedule configuration on the new source (original destination) cluster before creating the snapshot schedule.
-- name: Validate variables for snapshot schedule configuration on the new source (original destination) cluster.
+# Preflight validation - Validate variables for snapshot schedule configuration on the original source cluster before creating snapshot schedule to ensure that all necessary variables are defined and properly formatted to avoid any issues during the failback preparation process.
+- name: Validate variables for snapshot schedule configuration on the original source cluster.
   ansible.builtin.assert:
     that:
       - src_snapshot_schedule_specs is defined
       - src_snapshot_schedule_specs is mapping
-      - dst_vm_namespace is defined and dst_vm_namespace | default('') | trim | length > 0
-      - dst_appvault_name is defined and dst_appvault_name | default('') | trim | length > 0
+      - src_vm_namespace is defined and src_vm_namespace | default('') | trim | length > 0
+      - src_appvault_name is defined and src_appvault_name | default('') | trim | length > 0
       - src_application_name is defined and src_application_name | default('') | trim | length > 0
       - src_snapshot_schedule_specs.name is defined and src_snapshot_schedule_specs.name | default('') | trim | length > 0
       - src_snapshot_schedule_specs.snapshot_reclaim_policy is defined and src_snapshot_schedule_specs.snapshot_reclaim_policy | default('') | trim | length > 0
@@ -90,24 +90,23 @@
     success_msg: "Variables for snapshot schedule configuration validated successfully"
   when: src_scheduled_snapshot | default(false) | bool
   tags:
-    - new_src_preflight
-    - new_src_snapshot_schedule_create
+    - original_src_snapshot_schedule_create
 
-# On the new source OpenShift cluster, take a snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
-- name: Create a snapshot schedule for the source application {{ src_application_name }} on the new source OpenShift cluster
+# On the original source OpenShift cluster, take a snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
+- name: Create a snapshot schedule for the source application {{ src_application_name }} on the original source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ dst_oc_api_url }}"
-    api_key: "{{ dst_oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: Schedule
       metadata:
         name: "{{ src_snapshot_schedule_specs.name }}"
-        namespace: "{{ dst_vm_namespace }}"
+        namespace: "{{ src_vm_namespace }}"
       spec:
-        appVaultRef: "{{ dst_appvault_name }}"
+        appVaultRef: "{{ src_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
         snapshotReclaimPolicy: "{{ src_snapshot_schedule_specs.snapshot_reclaim_policy }}"
         backupRetention: "0"
@@ -119,7 +118,7 @@
           RRULE:{{ src_snapshot_schedule_specs.recurrence_rule.rrule }}
   when: src_scheduled_snapshot | default(false) | bool
   tags:
-    - new_src_snapshot_schedule_create
+    - original_src_snapshot_schedule_create
 
 # Verify the snapshot schedule creation
 - name: Get source snapshot schedule details to verify creation
@@ -127,33 +126,33 @@
     kind: Schedule
     api_version: protect.trident.netapp.io/v1
     name: "{{ src_snapshot_schedule_specs.name }}"
-    namespace: "{{ dst_vm_namespace }}"
-    host: "{{ dst_oc_api_url }}"
-    api_key: "{{ dst_oc_api_token }}"
+    namespace: "{{ src_vm_namespace }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-  register: new_src_snapshot_schedule_info
+  register: original_src_snapshot_schedule_info
   changed_when: false
   when: src_scheduled_snapshot | default(false) | bool
   tags:
-    - new_src_snapshot_schedule_verify
+    - original_src_snapshot_schedule_verify
 
-- name: Display source snapshot schedule details created in {{ dst_vm_namespace }} namespace
+- name: Display source snapshot schedule details created in {{ src_vm_namespace }} namespace
   ansible.builtin.debug:
-    var: new_src_snapshot_schedule_info.resources[0]
+    var: original_src_snapshot_schedule_info.resources[0]
   when:
     - src_scheduled_snapshot | default(false) | bool
-    - new_src_snapshot_schedule_info.resources | length > 0
+    - original_src_snapshot_schedule_info.resources | length > 0
   tags:
-    - new_src_snapshot_schedule_verify
+    - original_src_snapshot_schedule_verify
 
-# Preflight validation - Validate variables for on-demand snapshot configuration on the new source (original destination) cluster before creating the on-demand snapshot.
-- name: Validate variables for on-demand snapshot configuration on the new source (original destination) cluster.
+# Preflight validation - Validate variables for on-demand snapshot configuration on the original source cluster before creating the on-demand snapshot.
+- name: Validate variables for on-demand snapshot configuration on the original source cluster.
   ansible.builtin.assert:
     that:
       - src_on_demand_snapshot_specs is defined
       - src_on_demand_snapshot_specs is mapping
-      - dst_vm_namespace is defined and dst_vm_namespace | default('') | trim | length > 0
-      - dst_appvault_name is defined and dst_appvault_name | default('') | trim | length > 0
+      - src_vm_namespace is defined and src_vm_namespace | default('') | trim | length > 0
+      - src_appvault_name is defined and src_appvault_name | default('') | trim | length > 0
       - src_application_name is defined and src_application_name | default('') | trim | length > 0
       - src_on_demand_snapshot_specs.name is defined and src_on_demand_snapshot_specs.name | default('') | trim | length > 0
       - src_on_demand_snapshot_specs.reclaim_policy is defined and src_on_demand_snapshot_specs.reclaim_policy | default('') | trim | length > 0
@@ -161,57 +160,56 @@
     success_msg: "Variables for on-demand snapshot configuration validated successfully"
   when: src_on_demand_snapshot | default(false) | bool
   tags:
-    - new_src_preflight
-    - new_src_on_demand_snapshot_create
+    - original_src_on_demand_snapshot_create
 
-# On the new source OpenShift cluster, take an on-demand snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
-- name: Create an on-demand snapshot for the source application {{ src_application_name }} on the new source OpenShift cluster
+# On the original source OpenShift cluster, take an on-demand snapshot of the source application. This snapshot is used as the basis for replication on the destination cluster.
+- name: Create an on-demand snapshot for the source application {{ src_application_name }} on the original source OpenShift cluster
   kubernetes.core.k8s:
     state: present
-    host: "{{ dst_oc_api_url }}"
-    api_key: "{{ dst_oc_api_token }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
     definition:
       apiVersion: protect.trident.netapp.io/v1
       kind: Snapshot
       metadata:
         name: "{{ src_on_demand_snapshot_specs.name }}"
-        namespace: "{{ dst_vm_namespace }}"
+        namespace: "{{ src_vm_namespace }}"
       spec:
-        appVaultRef: "{{ dst_appvault_name }}"
+        appVaultRef: "{{ src_appvault_name }}"
         applicationRef: "{{ src_application_name }}"
         reclaimPolicy: "{{ src_on_demand_snapshot_specs.reclaim_policy }}"
   when: src_on_demand_snapshot | default(false) | bool
   tags:
-    - new_src_on_demand_snapshot_create
+    - original_src_on_demand_snapshot_create
 
 # Wait for on-demand snapshot to reach Completed state before proceeding
-- name: Wait for source on-demand snapshot to reach Completed state on the new source OpenShift cluster
+- name: Wait for source on-demand snapshot to reach Completed state on the original source OpenShift cluster
   kubernetes.core.k8s_info:
     kind: Snapshot
     api_version: protect.trident.netapp.io/v1
     name: "{{ src_on_demand_snapshot_specs.name }}"
-    namespace: "{{ dst_vm_namespace }}"
-    host: "{{ dst_oc_api_url }}"
-    api_key: "{{ dst_oc_api_token }}"
+    namespace: "{{ src_vm_namespace }}"
+    host: "{{ src_oc_api_url }}"
+    api_key: "{{ src_oc_api_token }}"
     validate_certs: false
-  register: new_src_on_demand_snapshot_info
+  register: original_src_on_demand_snapshot_info
   until: >
-    new_src_on_demand_snapshot_info.resources | length > 0 and
-    new_src_on_demand_snapshot_info.resources[0].status.state is defined and
-    new_src_on_demand_snapshot_info.resources[0].status.state == "Completed"
+    original_src_on_demand_snapshot_info.resources | length > 0 and
+    original_src_on_demand_snapshot_info.resources[0].status.state is defined and
+    original_src_on_demand_snapshot_info.resources[0].status.state == "Completed"
   retries: 30
   delay: 10
   changed_when: false
   when: src_on_demand_snapshot | default(false) | bool
   tags:
-    - new_src_on_demand_snapshot_verify
+    - original_src_on_demand_snapshot_verify
 
-- name: Display source on-demand snapshot details created in {{ dst_vm_namespace }} namespace
+- name: Display source on-demand snapshot details created in {{ src_vm_namespace }} namespace
   ansible.builtin.debug:
-    var: new_src_on_demand_snapshot_info.resources[0]
+    var: original_src_on_demand_snapshot_info.resources[0]
   when:
     - src_on_demand_snapshot | default(false) | bool
-    - new_src_on_demand_snapshot_info.resources | length > 0
+    - original_src_on_demand_snapshot_info.resources | length > 0
   tags:
-    - new_src_on_demand_snapshot_verify
+    - original_src_on_demand_snapshot_verify
